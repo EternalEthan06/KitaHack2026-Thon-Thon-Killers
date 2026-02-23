@@ -1,158 +1,104 @@
-# SDG Connect — KitaHack 2026
+# 🌱 SDG Connect — KitaHack 2026
 
-A social media platform that gamifies UN Sustainable Development Goals (SDGs). Users post SDG-related photos which are **automatically scored by Google Gemini AI**. Earn points, unlock rewards, volunteer with NGOs, and shop the eco marketplace.
+A social impact app powered by Flutter + Firebase + Gemini AI, built for **KitaHack 2026**.
 
-## 🛠️ Tech Stack
-
-| Layer | Technology |
-|---|---|
-| **Mobile App** | Flutter (Dart) |
-| **AI Scoring** | Google Gemini API (`gemini-1.5-flash`) |
-| **Auth** | Firebase Authentication |
-| **Database** | Cloud Firestore |
-| **Storage** | Firebase Storage |
-| **Backend** | Cloud Functions for Firebase (Python) |
-| **Notifications** | Firebase Cloud Messaging |
+Users earn SDG points by posting impact content, volunteering, and donating. AI automatically scores posts and stories based on UN Sustainable Development Goals (SDGs).
 
 ---
 
-## 🚀 Setup Instructions
+## Prerequisites
 
-### Step 1: Install Flutter
-Download Flutter SDK from https://flutter.dev/docs/get-started/install
-Add `flutter/bin` to your PATH. Verify with: `flutter doctor`
+| Tool | Version |
+|------|---------|
+| [Flutter](https://docs.flutter.dev/get-started/install) | ≥ 3.19 |
+| [Dart](https://dart.dev/get-dart) | ≥ 3.3 |
+| A web browser (Chrome recommended) | — |
 
-### Step 2: Create Firebase Project
-1. Go to https://console.firebase.google.com
-2. Create a new project called `sdg-connect`
-3. Enable:
-   - **Authentication** → Sign-in methods: Google, Email/Password
-   - **Cloud Firestore** → Start in test mode
-   - **Firebase Storage** → Start in test mode
-   - **Cloud Functions**
+---
 
-### Step 3: Connect Flutter to Firebase
+## Setup
+
+### 1. Clone the repo
+
 ```bash
-# Install FlutterFire CLI
-dart pub global activate flutterfire_cli
-
-# In the sdg_app directory:
-flutterfire configure
-```
-This generates `lib/firebase_options.dart` automatically.
-
-### Step 4: Get API Keys
-- **Gemini API Key**: https://aistudio.google.com → Get API Key (free)
-- **Google Maps API Key**: https://console.cloud.google.com → Enable Maps SDK for Android/iOS
-
-Add them to `.env`:
-```
-GEMINI_API_KEY=your_key_here
-GOOGLE_MAPS_API_KEY=your_key_here
+git clone https://github.com/EternalEthan06/KitaHack2026-Thon-Thon-Killers.git
+cd "KitaHack2026-Thon-Thon-Killers/Hackathon/Kitahack 26'/sdg_app"
 ```
 
-### Step 5: Install Flutter Dependencies
+### 2. Get dependencies
+
 ```bash
-cd sdg_app
 flutter pub get
 ```
 
-### Step 6: Seed Firestore with Demo Data
+### 3. Add the `.env` file
+
+Create a file called `.env` in the `sdg_app/` root (same level as `pubspec.yaml`):
+
+```env
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+Get a free key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+
+### 4. Add Firebase config
+
+This app uses an existing Firebase project. Get `google-services.json` (Android) and/or `GoogleService-Info.plist` (iOS/macOS) from a team member, then place them:
+
+- `android/app/google-services.json`
+- `ios/Runner/GoogleService-Info.plist` *(if running on iOS)*
+
+For **web**, the Firebase config is already embedded in `web/index.html`.
+
+> 💡 **Team members:** Ask the project owner for the Firebase config files — they are not in the repo for security reasons.
+
+### 5. Run the app
+
 ```bash
-# Install Python dependencies
-pip install firebase-admin google-cloud-firestore
+# Web (recommended for dev)
+flutter run -d chrome
 
-# Download service account key from Firebase Console → Project Settings → Service accounts
-# Update the path in seed_firestore.py line 14, then run:
-python seed_firestore.py
-```
+# Windows desktop
+flutter run -d windows
 
-### Step 7: Run the App
-```bash
-flutter run
+# Android (with device/emulator connected)
+flutter run -d android
 ```
 
 ---
 
-## ☁️ Deploy Cloud Functions
-```bash
-cd sdg_app
+## Project Structure
 
-# Install Firebase CLI
-npm install -g firebase-tools
-firebase login
-
-# Set Gemini API key
-firebase functions:secrets:set GEMINI_API_KEY
-
-# Deploy
-firebase deploy --only functions
+```
+lib/
+├── core/
+│   ├── models/       # Data models (Post, User, Story, NGO…)
+│   ├── services/     # Firebase, Auth, Gemini AI services
+│   ├── theme/        # App colours & typography
+│   └── constants/    # SDG goal names, icons, colours
+├── features/
+│   ├── feed/         # Feed, Stories, Story viewer/creator
+│   ├── volunteer/    # Volunteer events + personal calendar
+│   ├── donate/       # NGO donation flow
+│   ├── rewards/      # SDG points, badges, leaderboard
+│   └── profile/      # User profile
+└── shared/
+    └── widgets/      # PostCard, StoryBar, etc.
 ```
 
 ---
 
-## 📁 Project Structure
-```
-sdg_app/
-├── lib/
-│   ├── main.dart                    # Entry point
-│   ├── app.dart                     # Root widget
-│   ├── core/
-│   │   ├── constants/               # SDG names, colors
-│   │   ├── models/                  # UserModel, PostModel, NGOModel...
-│   │   ├── services/
-│   │   │   ├── gemini_service.dart  ← Gemini AI scoring
-│   │   │   ├── auth_service.dart    ← Firebase Auth
-│   │   │   └── firestore_service.dart ← All DB operations
-│   │   ├── theme/                   # Dark theme, SDG colors
-│   │   └── router/                  # GoRouter navigation
-│   ├── features/
-│   │   ├── auth/                    # Login, Register
-│   │   ├── home/                    # Bottom nav shell
-│   │   ├── feed/                    # For You + SDG tabs
-│   │   ├── camera/                  # Photo + Gemini scoring
-│   │   ├── profile/                 # Score, streak, posts
-│   │   ├── rewards/                 # Redeem SDG points
-│   │   ├── volunteer/               # NGO events + register
-│   │   ├── donate/                  # Donate to NGOs
-│   │   ├── marketplace/             # NGO products
-│   │   └── post_detail/             # Full post view
-│   └── shared/widgets/
-│       ├── post_card.dart           # Feed post card
-│       └── sdg_button.dart          # Styled button
-├── functions/                       # Cloud Functions (Python)
-│   ├── main.py                      # Gemini scoring trigger
-│   └── requirements.txt
-└── seed_firestore.py                # Demo data seeder
-```
+## Key Features
+
+- 📸 **Stories** — 24h expiry, AI-scored SDG impact points
+- 🏆 **Leaderboard sidebar** — Top contributors & most active NGOs
+- 🖼️ **Multi-photo posts** — Up to 5 images per post with swipeable carousel
+- 🤖 **Gemini AI** — Auto-scores posts & stories for SDG relevance
+- 🤝 **Volunteer** — Register for events, track calendar, earn points on completion
+- 💚 **Donate** — Support NGOs, earn SDG points
 
 ---
 
-## ✅ Features Checklist
-- [x] Google Sign-In + Email Auth
-- [x] Post SDG photos with Gemini AI scoring
-- [x] Post normal photos (no scoring)
-- [x] Real-time feed (For You + SDG-only tabs)
-- [x] SDG goal chips with UN colors
-- [x] Like/interact with posts
-- [x] User profile with score + streak
-- [x] Rewards catalogue (redeem SDG points)
-- [x] Volunteer events (register + earn points)
-- [x] NGO donations (earn bonus points)
-- [x] NGO marketplace
-- [x] Cloud Functions SDG scoring backend
-- [x] Firestore seed data (4 Malaysian NGOs, events, products, rewards)
+## Team
 
----
-
-## 🏆 KitaHack Demo Script
-1. Open app → Sign in with Google
-2. Tap camera FAB → Select SDG Post → Pick a green/eco image
-3. Watch: "Analysing with Gemini AI..." → Score reveal screen
-4. Go back to Feed → See your post with SDG badge + AI reason
-5. Open Rewards → Show points balance → Redeem a reward
-6. Open Volunteer → Register for an event → Points increase
-7. Open Donate → Donate RM5 to WWF Malaysia
-8. Open Marketplace → Browse eco products
-
-**Total demo time: ~3 minutes**
+Built by **Thon Thon Killers** for KitaHack 2026.
