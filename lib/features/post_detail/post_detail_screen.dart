@@ -14,7 +14,7 @@ class PostDetailScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Post')),
       body: FutureBuilder<PostModel?>(
-        future: FirestoreService.getPostById(postId),
+        future: DatabaseService.getPostById(postId),
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
             return const Center(

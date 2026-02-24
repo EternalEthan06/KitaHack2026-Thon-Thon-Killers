@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -20,7 +19,7 @@ class StoryBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final uid = AuthService.currentUserId ?? '';
     return StreamBuilder<List<StoryModel>>(
-      stream: FirestoreService.watchStories(),
+      stream: DatabaseService.watchStories(),
       builder: (ctx, snap) {
         if (snap.hasError) {
           return SizedBox(
@@ -161,7 +160,7 @@ class _StoryRing extends StatelessWidget {
       onTap: () {
         // Mark all stories in this group as viewed
         for (final s in stories) {
-          FirestoreService.markStoryViewed(s.id, uid);
+          DatabaseService.markStoryViewed(s.id, uid);
         }
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -246,16 +245,23 @@ class _StoryCreateScreenState extends State<StoryCreateScreen> {
 
   Future<void> _tryRecoverStory() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedBase64 = prefs.getString('temp_story_bytes');
-    if (savedBase64 != null && mounted) {
-      print('♻️ RECOVERING CRASHED STORY...');
-      final bytes = base64Decode(savedBase64);
-      setState(() {
-        _imageBytes = bytes;
-        _captionCtrl.text = prefs.getString('temp_story_caption') ?? '';
-        _isFromCamera = true;
-      });
-      await _analyzeImage(bytes);
+    final tempDocId = prefs.getString('temp_story_doc_id');
+    final isActive = prefs.getBool('temp_story_active') ?? false;
+
+    if (tempDocId != null && isActive && mounted) {
+      print('♻️ RECOVERING FROM DATABASE CLIPBOARD...');
+      setState(() => _uploading = true);
+      final bytes = await DatabaseService.getTempImage(tempDocId);
+      if (bytes != null && mounted) {
+        setState(() {
+          _imageBytes = bytes;
+          _isFromCamera = true;
+          _uploading = false;
+        });
+        await _analyzeImage(bytes);
+      } else {
+        setState(() => _uploading = false);
+      }
     }
   }
 
@@ -268,21 +274,28 @@ class _StoryCreateScreenState extends State<StoryCreateScreen> {
   Future<void> _captureWithCamera() async {
     final picker = ImagePicker();
     final file = await picker.pickImage(
-        source: ImageSource.camera, imageQuality: 15, maxWidth: 512);
+        source: ImageSource.camera, imageQuality: 50, maxWidth: 800);
     if (file == null) return;
+
+    setState(() => _uploading = true);
     final bytes = await file.readAsBytes();
-    setState(() {
-      _imageBytes = bytes;
-      _analysis = null;
-      _isFromCamera = true;
-    });
 
-    // 💾 SAVE TO DISK IMMEDIATELY (to survive crash/refresh)
+    // 🚚 OFF-LOAD TO DATABASE IMMEDIATELY
+    final tempId = await DatabaseService.uploadTempImage(bytes);
+
+    // 🩹 Save ID to disk to survive refresh
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('temp_story_bytes', base64Encode(bytes));
-    await prefs.setString('temp_story_caption', _captionCtrl.text);
+    await prefs.setString('temp_story_doc_id', tempId);
+    await prefs.setBool('temp_story_active', true);
 
-    await _analyzeImage(bytes);
+    if (mounted) {
+      setState(() {
+        _imageBytes = bytes;
+        _uploading = false;
+        _isFromCamera = true;
+      });
+      await _analyzeImage(bytes);
+    }
   }
 
   Future<void> _pickFromGallery() async {
@@ -347,9 +360,9 @@ class _StoryCreateScreenState extends State<StoryCreateScreen> {
       final reason = _analysis!['reason'] as String? ?? '';
       final points = (score * 0.7).round();
 
-      print('🚀 Calling FirestoreService.createStory (points: $points)...');
+      print('🚀 Calling DatabaseService.createStory (points: $points)...');
       setState(() => _uploadStatus = '📂 Preparing upload...');
-      await FirestoreService.createStory(
+      await DatabaseService.createStory(
         userId: uid,
         userDisplayName: AuthService.currentUser?.displayName ?? 'You',
         userPhotoURL: AuthService.currentUser?.photoURL ?? '',
@@ -363,10 +376,15 @@ class _StoryCreateScreenState extends State<StoryCreateScreen> {
 
       print('✅ Story published successfully!');
 
-      // 🧼 CLEAN THE DISK
+      // 🧼 CLEAN THE DISK & DATABASE
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('temp_story_bytes');
+      final tempId = prefs.getString('temp_story_doc_id');
+      if (tempId != null) await DatabaseService.deleteTempImage(tempId);
+
+      await prefs.remove('temp_story_doc_id');
       await prefs.remove('temp_story_caption');
+      await prefs.remove('temp_story_active');
+      await prefs.remove('temp_story_bytes');
 
       if (mounted) {
         setState(() => _uploading = false);
@@ -377,7 +395,7 @@ class _StoryCreateScreenState extends State<StoryCreateScreen> {
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ));
-        Navigator.of(context).pop();
+        context.go('/home');
       }
     } catch (e, stack) {
       print('❌ ERROR PUBLISHING STORY: $e');

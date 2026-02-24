@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:convert';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:uuid/uuid.dart';
 import '../constants/app_constants.dart';
 import '../models/post_model.dart';
@@ -9,8 +10,12 @@ import '../models/ngo_model.dart';
 import '../models/story_model.dart';
 import 'auth_service.dart';
 
-class FirestoreService {
-  static final _db = FirebaseFirestore.instance;
+class DatabaseService {
+  static final _db = FirebaseDatabase.instanceFor(
+    app: Firebase.app(),
+    databaseURL:
+        'https://kitahack2026-f1f3e-default-rtdb.asia-southeast1.firebasedatabase.app',
+  ).ref();
   static const _uuid = Uuid();
 
   // ═══════════════════════════════════════════
@@ -20,35 +25,44 @@ class FirestoreService {
   static Stream<UserModel?> watchCurrentUser() {
     final uid = AuthService.currentUserId;
     if (uid == null) return const Stream.empty();
-    return _db
-        .collection(AppConstants.colUsers)
-        .doc(uid)
-        .snapshots()
-        .map((doc) => doc.exists ? UserModel.fromFirestore(doc) : null);
+    return _db.child(AppConstants.colUsers).child(uid).onValue.map((event) {
+      if (event.snapshot.value == null) return null;
+      return UserModel.fromMap(
+          event.snapshot.value as Map<dynamic, dynamic>, event.snapshot.key!);
+    });
   }
 
   static Future<UserModel?> getUser(String uid) async {
-    final doc = await _db.collection(AppConstants.colUsers).doc(uid).get();
-    return doc.exists ? UserModel.fromFirestore(doc) : null;
+    final snapshot = await _db.child(AppConstants.colUsers).child(uid).get();
+    if (!snapshot.exists) return null;
+    return UserModel.fromMap(
+        snapshot.value as Map<dynamic, dynamic>, snapshot.key!);
   }
 
   static Future<PostModel?> getPostById(String postId) async {
-    final doc = await _db.collection(AppConstants.colPosts).doc(postId).get();
-    return doc.exists ? PostModel.fromFirestore(doc) : null;
+    final snapshot = await _db.child(AppConstants.colPosts).child(postId).get();
+    if (!snapshot.exists) return null;
+    return PostModel.fromMap(
+        snapshot.value as Map<dynamic, dynamic>, snapshot.key!);
   }
 
   static Future<void> updateUserScore(String uid, int pointsToAdd) async {
-    await _db.collection(AppConstants.colUsers).doc(uid).update({
-      'sdgScore': FieldValue.increment(pointsToAdd),
-      'lastPostDate': FieldValue.serverTimestamp(),
-    });
+    final ref = _db.child(AppConstants.colUsers).child(uid);
+    final snapshot = await ref.get();
+    if (snapshot.exists) {
+      final data = snapshot.value as Map<dynamic, dynamic>;
+      final currentScore = data['sdgScore'] as int? ?? 0;
+      await ref.update({
+        'sdgScore': currentScore + pointsToAdd,
+        'lastPostDate': ServerValue.timestamp,
+      });
+    }
   }
 
   // ═══════════════════════════════════════════
   // POSTS
   // ═══════════════════════════════════════════
 
-  /// Create post using Base64 storage for hackathon free-tier compatibility
   static Future<PostModel> createPostFromBytes({
     required Uint8List imageBytes,
     required String fileName,
@@ -60,11 +74,7 @@ class FirestoreService {
     final ext = fileName.split('.').last.toLowerCase();
 
     try {
-      print(
-          '📦 FirestoreService: Converting image to Base64 (Free Tier Mode)...');
       final base64Image = 'data:image/$ext;base64,${base64.encode(imageBytes)}';
-
-      // Create Firestore document
       final post = PostModel(
         id: postId,
         userId: author.uid,
@@ -78,19 +88,15 @@ class FirestoreService {
         status: type == PostType.sdg ? PostStatus.pending : PostStatus.scored,
       );
 
-      await _db
-          .collection(AppConstants.colPosts)
-          .doc(postId)
-          .set(post.toFirestore());
-
+      final data = post.toFirestore();
+      data['createdAt'] = ServerValue.timestamp;
+      await _db.child(AppConstants.colPosts).child(postId).set(data);
       return post;
     } catch (e) {
-      print('🚩 FirestoreService ERROR: $e');
       rethrow;
     }
   }
 
-  /// Update post with Gemini AI score result
   static Future<void> updatePostScore({
     required String postId,
     required String userId,
@@ -99,7 +105,7 @@ class FirestoreService {
     required String aiReason,
     required bool isAccepted,
   }) async {
-    await _db.collection(AppConstants.colPosts).doc(postId).update({
+    await _db.child(AppConstants.colPosts).child(postId).update({
       'sdgScore': score,
       'sdgGoals': sdgGoals,
       'aiReason': aiReason,
@@ -112,96 +118,105 @@ class FirestoreService {
     }
   }
 
-  /// Toggle like on a post
   static Future<void> toggleLike(String postId, String userId) async {
-    final ref = _db.collection(AppConstants.colPosts).doc(postId);
-    final doc = await ref.get();
-    if (!doc.exists) return;
+    final ref = _db.child(AppConstants.colPosts).child(postId);
+    final snapshot = await ref.get();
+    if (!snapshot.exists) return;
 
-    final likedBy = List<String>.from(doc['likedBy'] ?? []);
+    final data = snapshot.value as Map<dynamic, dynamic>;
+    final likedBy = data['likedBy'] != null
+        ? List<String>.from(data['likedBy'])
+        : <String>[];
+    final likes = data['likes'] as int? ?? 0;
+
     if (likedBy.contains(userId)) {
-      await ref.update({
-        'likedBy': FieldValue.arrayRemove([userId]),
-        'likes': FieldValue.increment(-1),
-      });
+      likedBy.remove(userId);
+      await ref.update({'likedBy': likedBy, 'likes': likes - 1});
     } else {
-      await ref.update({
-        'likedBy': FieldValue.arrayUnion([userId]),
-        'likes': FieldValue.increment(1),
-      });
+      likedBy.add(userId);
+      await ref.update({'likedBy': likedBy, 'likes': likes + 1});
     }
   }
 
-  /// Feed: all posts sorted by newest
   static Stream<List<PostModel>> watchFeed() {
+    print('📡 watchFeed: Listening to ${AppConstants.colPosts}...');
     return _db
-        .collection(AppConstants.colPosts)
-        .orderBy('createdAt', descending: true)
-        .limit(50)
-        .snapshots()
-        .map((snap) => snap.docs
-            .map(PostModel.fromFirestore)
-            .where((p) => p.status != PostStatus.rejected)
-            .toList());
+        .child(AppConstants.colPosts)
+        .onValue
+        .map<List<PostModel>>((event) {
+      print(
+          '📥 watchFeed: Data received! (Snapshot exists: ${event.snapshot.exists})');
+      if (event.snapshot.value == null) return [];
+      final data = event.snapshot.value as Map<dynamic, dynamic>;
+      final posts = data.entries
+          .map((e) => PostModel.fromMap(e.value as Map, e.key))
+          .where((p) => p.status != PostStatus.rejected)
+          .toList();
+      posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return posts.take(50).toList();
+    }).handleError((e) {
+      print('❌ ERROR in watchFeed: $e');
+      return <PostModel>[];
+    });
   }
 
-  /// SDG-only feed sorted newest first
+  static Future<void> deletePost(String postId) async {
+    await _db.child(AppConstants.colPosts).child(postId).remove();
+  }
+
+  static Future<void> updatePostCaption(
+      String postId, String newCaption) async {
+    await _db
+        .child(AppConstants.colPosts)
+        .child(postId)
+        .update({'caption': newCaption});
+  }
+
   static Stream<List<PostModel>> watchSdgFeed() {
-    return _db
-        .collection(AppConstants.colPosts)
-        .where('type', isEqualTo: 'sdg')
-        .limit(50)
-        .snapshots()
-        .map((snap) {
-      final posts = snap.docs
-          .map(PostModel.fromFirestore)
-          .where((p) => p.status == PostStatus.scored)
+    return _db.child(AppConstants.colPosts).onValue.map((event) {
+      if (event.snapshot.value == null) return [];
+      final data = event.snapshot.value as Map<dynamic, dynamic>;
+      final posts = data.entries
+          .map((e) => PostModel.fromMap(e.value as Map, e.key))
+          .where((p) => p.type == PostType.sdg && p.status == PostStatus.scored)
+          .toList();
+      posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return posts.take(50).toList();
+    });
+  }
+
+  static Stream<List<PostModel>> watchUserPosts(String userId) {
+    return _db.child(AppConstants.colPosts).onValue.map((event) {
+      if (event.snapshot.value == null) return [];
+      final data = event.snapshot.value as Map<dynamic, dynamic>;
+      final posts = data.entries
+          .map((e) => PostModel.fromMap(e.value as Map, e.key))
+          .where((p) => p.userId == userId)
           .toList();
       posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return posts;
     });
   }
 
-  /// User's own posts
-  static Stream<List<PostModel>> watchUserPosts(String userId) {
-    return _db
-        .collection(AppConstants.colPosts)
-        .where('userId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snap) => snap.docs.map(PostModel.fromFirestore).toList());
-  }
-
-  // ═══════════════════════════════════════════
-  // STREAKS
-  // ═══════════════════════════════════════════
-
   static Future<void> _updateStreak(String userId) async {
-    final userDoc =
-        await _db.collection(AppConstants.colUsers).doc(userId).get();
-    if (!userDoc.exists) return;
-
-    final user = UserModel.fromFirestore(userDoc);
+    final snap = await _db.child(AppConstants.colUsers).child(userId).get();
+    if (!snap.exists) return;
+    final user = UserModel.fromMap(snap.value as Map, snap.key!);
     final now = DateTime.now();
     final lastPost = user.lastPostDate;
-
     int newStreak = user.streak;
     if (lastPost == null) {
       newStreak = 1;
     } else {
-      final daysSinceLast = now.difference(lastPost).inDays;
-      if (daysSinceLast == 0) {
-        // Same day, no change
-      } else if (daysSinceLast == 1) {
+      final diff = now.difference(lastPost).inDays;
+      if (diff == 1)
         newStreak += 1;
-      } else {
-        newStreak = 1;
-      }
+      else if (diff > 1) newStreak = 1;
     }
-
-    await _db.collection(AppConstants.colUsers).doc(userId).update({
-      'streak': newStreak,
-    });
+    await _db
+        .child(AppConstants.colUsers)
+        .child(userId)
+        .update({'streak': newStreak});
   }
 
   // ═══════════════════════════════════════════
@@ -209,283 +224,295 @@ class FirestoreService {
   // ═══════════════════════════════════════════
 
   static Stream<List<RewardModel>> watchRewards() {
-    return _db
-        .collection(AppConstants.colRewards)
-        .where('available', isEqualTo: true)
-        .snapshots()
-        .map((snap) => snap.docs.map(RewardModel.fromFirestore).toList());
+    return _db.child(AppConstants.colRewards).onValue.map((event) {
+      if (event.snapshot.value == null) return [];
+      final data = event.snapshot.value as Map<dynamic, dynamic>;
+      return data.entries
+          .map((e) => RewardModel.fromMap(e.value as Map, e.key))
+          .where((r) => r.available)
+          .toList();
+    });
   }
 
   static Future<bool> redeemReward(
       String userId, RewardModel reward, int userScore) async {
     if (userScore < reward.costInScore) return false;
-
-    final batch = _db.batch();
-    batch.update(_db.collection(AppConstants.colUsers).doc(userId), {
-      'sdgScore': FieldValue.increment(-reward.costInScore),
+    await _db
+        .child(AppConstants.colUsers)
+        .child(userId)
+        .update({'sdgScore': userScore - reward.costInScore});
+    await _db
+        .child(AppConstants.colUsers)
+        .child(userId)
+        .child('redeemed')
+        .push()
+        .set({
+      'rewardId': reward.id,
+      'title': reward.title,
+      'costInScore': reward.costInScore,
+      'status': 'pending',
+      'redeemedAt': ServerValue.timestamp,
     });
-    batch.set(
-      _db
-          .collection(AppConstants.colUsers)
-          .doc(userId)
-          .collection('redeemed')
-          .doc(),
-      {
-        'rewardId': reward.id,
-        'title': reward.title,
-        'description': reward.description,
-        'type': reward.type,
-        'costInScore': reward.costInScore,
-        'imageURL': reward.imageURL,
-        'status': 'pending',
-        'redeemedAt': FieldValue.serverTimestamp(),
-      },
-    );
-    await batch.commit();
     return true;
   }
 
   static Stream<List<Map<String, dynamic>>> watchUserRedemptions(
       String userId) {
     return _db
-        .collection(AppConstants.colUsers)
-        .doc(userId)
-        .collection('redeemed')
-        .orderBy('redeemedAt', descending: true)
-        .snapshots()
-        .map(
-            (snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+        .child(AppConstants.colUsers)
+        .child(userId)
+        .child('redeemed')
+        .onValue
+        .map((event) {
+      if (event.snapshot.value == null) return [];
+      final data = event.snapshot.value as Map<dynamic, dynamic>;
+      return data.entries
+          .map((e) =>
+              {'id': e.key, ...Map<String, dynamic>.from(e.value as Map)})
+          .toList();
+    });
   }
 
   // ═══════════════════════════════════════════
-  // VOLUNTEER EVENTS
+  // VOLUNTEER
   // ═══════════════════════════════════════════
 
   static Stream<List<VolunteerEventModel>> watchVolunteerEvents() {
+    print(
+        '📡 watchVolunteerEvents: Listening to ${AppConstants.colVolunteerEvents}...');
     return _db
-        .collection(AppConstants.colVolunteerEvents)
-        .orderBy('date')
-        .snapshots()
-        .map((snap) =>
-            snap.docs.map(VolunteerEventModel.fromFirestore).toList());
+        .child(AppConstants.colVolunteerEvents)
+        .onValue
+        .map<List<VolunteerEventModel>>((event) {
+      print(
+          '📥 watchVolunteerEvents: Data received! (Snapshot exists: ${event.snapshot.exists})');
+      if (event.snapshot.value == null) return [];
+      final data = event.snapshot.value as Map<dynamic, dynamic>;
+      return data.entries
+          .map((e) => VolunteerEventModel.fromMap(e.value as Map, e.key))
+          .toList();
+    }).handleError((e) {
+      print('❌ ERROR in watchVolunteerEvents: $e');
+      return <VolunteerEventModel>[];
+    });
   }
 
   static Future<void> registerForEvent(
       String eventId, String userId, VolunteerEventModel event) async {
-    final batch = _db.batch();
-    batch.update(_db.collection(AppConstants.colVolunteerEvents).doc(eventId), {
-      'registeredUsers': FieldValue.arrayUnion([userId]),
+    await _db
+        .child(AppConstants.colVolunteerEvents)
+        .child(eventId)
+        .child('registeredUsers')
+        .push()
+        .set(userId);
+    await _db
+        .child(AppConstants.colUsers)
+        .child(userId)
+        .child('volunteer_registrations')
+        .child(eventId)
+        .set({
+      'eventId': eventId,
+      'eventTitle': event.title,
+      'ngoName': event.ngoName,
+      'status': 'pending_approval',
+      'registeredAt': ServerValue.timestamp,
     });
-    batch.set(
-      _db
-          .collection(AppConstants.colUsers)
-          .doc(userId)
-          .collection('volunteer_registrations')
-          .doc(eventId),
-      {
-        'eventId': eventId,
-        'eventTitle': event.title,
-        'ngoName': event.ngoName,
-        'address': event.address,
-        'date': Timestamp.fromDate(event.date),
-        'sdgGoals': event.sdgGoals,
-        'sdgPointsReward': event.sdgPointsReward,
-        'imageURL': '',
-        'status': 'pending_approval',
-        'registeredAt': FieldValue.serverTimestamp(),
-      },
-    );
-    await batch.commit();
   }
 
   static Stream<List<Map<String, dynamic>>> watchUserRegistrations(
       String userId) {
     return _db
-        .collection(AppConstants.colUsers)
-        .doc(userId)
-        .collection('volunteer_registrations')
-        .orderBy('date')
-        .snapshots()
-        .map(
-            (snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+        .child(AppConstants.colUsers)
+        .child(userId)
+        .child('volunteer_registrations')
+        .onValue
+        .map((event) {
+      if (event.snapshot.value == null) return [];
+      final data = event.snapshot.value as Map<dynamic, dynamic>;
+      return data.entries
+          .map((e) =>
+              {'id': e.key, ...Map<String, dynamic>.from(e.value as Map)})
+          .toList();
+    });
   }
 
   static Stream<List<Map<String, dynamic>>> watchTopContributors() {
     return _db
-        .collection(AppConstants.colUsers)
-        .orderBy('sdgScore', descending: true)
-        .limit(10)
-        .snapshots()
-        .map(
-            (snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+        .child(AppConstants.colUsers)
+        .orderByChild('sdgScore')
+        .limitToLast(10)
+        .onValue
+        .map((event) {
+      if (event.snapshot.value == null) return [];
+      final data = event.snapshot.value as Map<dynamic, dynamic>;
+      final list = data.entries
+          .map((e) =>
+              {'id': e.key, ...Map<String, dynamic>.from(e.value as Map)})
+          .toList();
+      list.sort((a, b) => (b['sdgScore'] ?? 0).compareTo(a['sdgScore'] ?? 0));
+      return list;
+    });
   }
 
   // ═══════════════════════════════════════════
-  // NGO & MARKETPLACE
+  // NGO & DONATE
   // ═══════════════════════════════════════════
 
   static Stream<List<NGOModel>> watchNGOs() {
-    return _db
-        .collection(AppConstants.colNGOs)
-        .snapshots()
-        .map((snap) => snap.docs.map(NGOModel.fromFirestore).toList());
+    return _db.child(AppConstants.colNGOs).onValue.map((event) {
+      if (event.snapshot.value == null) return [];
+      final data = event.snapshot.value as Map<dynamic, dynamic>;
+      return data.entries
+          .map((e) => NGOModel.fromMap(e.value as Map, e.key))
+          .toList();
+    });
   }
 
   static Stream<List<MarketplaceProduct>> watchProducts() {
-    return _db
-        .collection(AppConstants.colProducts)
-        .where('stock', isGreaterThan: 0)
-        .snapshots()
-        .map(
-            (snap) => snap.docs.map(MarketplaceProduct.fromFirestore).toList());
+    return _db.child(AppConstants.colProducts).onValue.map((event) {
+      if (event.snapshot.value == null) return [];
+      final data = event.snapshot.value as Map<dynamic, dynamic>;
+      return data.entries
+          .map((e) => MarketplaceProduct.fromMap(e.value as Map, e.key))
+          .where((p) => p.stock > 0)
+          .toList();
+    });
   }
-
-  // ═══════════════════════════════════════════
-  // DONATIONS
-  // ═══════════════════════════════════════════
 
   static Stream<List<DonationProject>> watchDonationProjects() {
-    return _db
-        .collection('donation_projects')
-        .where('active', isEqualTo: true)
-        .snapshots()
-        .map((snap) {
-      final projects = snap.docs.map(DonationProject.fromFirestore).toList();
-      projects.sort((a, b) => a.ngoName.compareTo(b.ngoName));
-      return projects;
+    return _db.child('donation_projects').onValue.map((event) {
+      if (event.snapshot.value == null) return [];
+      final data = event.snapshot.value as Map<dynamic, dynamic>;
+      return data.entries
+          .map((e) => DonationProject.fromMap(e.value as Map, e.key))
+          .where((p) => p.active)
+          .toList();
     });
   }
 
-  static Future<void> donateMoneyToProject({
-    required String userId,
-    required DonationProject project,
-    required double amount,
-    required String message,
-  }) async {
-    final batch = _db.batch();
-    final donRef = _db.collection(AppConstants.colDonations).doc();
-    batch.set(donRef, {
+  static Future<void> donateMoneyToProject(
+      {required String userId,
+      required DonationProject project,
+      required double amount,
+      required String message}) async {
+    await _db.child(AppConstants.colDonations).push().set({
       'userId': userId,
       'projectId': project.id,
-      'ngoId': project.ngoId,
-      'ngoName': project.ngoName,
-      'projectTitle': project.title,
       'type': 'money',
       'amount': amount,
-      'message': message,
-      'sdgGoalsSupported': project.sdgGoals,
-      'createdAt': FieldValue.serverTimestamp(),
+      'createdAt': ServerValue.timestamp,
     });
-    batch.update(_db.collection('donation_projects').doc(project.id), {
-      'raisedAmount': FieldValue.increment(amount),
-    });
-    await batch.commit();
-    await updateUserScore(userId, (amount * 10).round().clamp(10, 100));
+    final ref = _db.child('donation_projects').child(project.id);
+    final snap = await ref.child('raisedAmount').get();
+    await ref.update({'raisedAmount': (snap.value as num? ?? 0) + amount});
   }
 
-  static Future<bool> donatePointsToProject({
-    required String userId,
-    required DonationProject project,
-    required int points,
-    required int userCurrentScore,
-  }) async {
+  static Future<bool> donatePointsToProject(
+      {required String userId,
+      required DonationProject project,
+      required int points,
+      required int userCurrentScore}) async {
     if (userCurrentScore < points) return false;
-    final batch = _db.batch();
-    final donRef = _db.collection(AppConstants.colDonations).doc();
-    batch.set(donRef, {
+    await _db
+        .child(AppConstants.colUsers)
+        .child(userId)
+        .update({'sdgScore': userCurrentScore - points});
+    await _db.child(AppConstants.colDonations).push().set({
       'userId': userId,
       'projectId': project.id,
-      'ngoId': project.ngoId,
-      'ngoName': project.ngoName,
-      'projectTitle': project.title,
       'type': 'points',
       'points': points,
-      'sdgGoalsSupported': project.sdgGoals,
-      'createdAt': FieldValue.serverTimestamp(),
+      'createdAt': ServerValue.timestamp,
     });
-    batch.update(_db.collection('donation_projects').doc(project.id), {
-      'raisedPoints': FieldValue.increment(points),
-    });
-    batch.update(_db.collection(AppConstants.colUsers).doc(userId), {
-      'sdgScore': FieldValue.increment(-points),
-    });
-    await batch.commit();
+    final ref = _db.child('donation_projects').child(project.id);
+    final snap = await ref.child('raisedPoints').get();
+    await ref.update({'raisedPoints': (snap.value as int? ?? 0) + points});
     return true;
   }
+
+  static Stream<List<NGOModel>> watchTopNGOs() =>
+      watchNGOs().map((list) => list.take(10).toList());
 
   // ═══════════════════════════════════════════
   // STORIES
   // ═══════════════════════════════════════════
 
   static Stream<List<StoryModel>> watchStories() {
-    final cutoff = Timestamp.fromDate(DateTime.now().toUtc());
-    return _db
-        .collection('stories')
-        .where('expiresAt', isGreaterThan: cutoff)
-        .limit(30)
-        .snapshots()
-        .map((snap) {
-      final stories = snap.docs.map(StoryModel.fromFirestore).toList();
+    return _db.child('stories').onValue.map((event) {
+      if (event.snapshot.value == null) return [];
+      final data = event.snapshot.value as Map<dynamic, dynamic>;
+      final stories = data.entries
+          .map((e) => StoryModel.fromMap(e.value as Map, e.key))
+          .where((s) => !s.isExpired)
+          .toList();
       stories.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return stories;
     });
   }
 
-  static Future<void> createStory({
-    required String userId,
-    required String userDisplayName,
-    required String userPhotoURL,
-    required Uint8List imageBytes,
-    required String caption,
-    required List<int> sdgGoals,
-    required int pointsAwarded,
-    required String aiReason,
-    Function(String)? onStatusChanged,
-  }) async {
-    print(
-        '🎨 FirestoreService: Converting story to Base64 (Free Tier Mode)...');
+  static Future<void> createStory(
+      {required String userId,
+      required String userDisplayName,
+      required String userPhotoURL,
+      required Uint8List imageBytes,
+      required String caption,
+      required List<int> sdgGoals,
+      required int pointsAwarded,
+      required String aiReason,
+      Function(String)? onStatusChanged}) async {
     onStatusChanged?.call('📂 Processing photo...');
-
-    try {
-      final base64Image = 'data:image/jpeg;base64,${base64.encode(imageBytes)}';
-
-      final now = DateTime.now().toUtc();
-      onStatusChanged?.call('📝 Saving to database...');
-      await _db.collection('stories').add({
-        'userId': userId,
-        'userDisplayName': userDisplayName,
-        'userPhotoURL': userPhotoURL,
-        'imageURL': base64Image,
-        'caption': caption,
-        'sdgGoals': sdgGoals,
-        'pointsAwarded': pointsAwarded,
-        'aiReason': aiReason,
-        'createdAt': FieldValue.serverTimestamp(),
-        'expiresAt': Timestamp.fromDate(now.add(const Duration(hours: 24))),
-        'viewedBy': [],
-      });
-
-      if (pointsAwarded > 0) {
-        await updateUserScore(userId, pointsAwarded);
-      }
-      print('🏁 FirestoreService: createStory complete!');
-    } catch (e) {
-      print('🚩 FirestoreService ERROR (Story): $e');
-      rethrow;
-    }
+    final b64 = 'data:image/jpeg;base64,${base64.encode(imageBytes)}';
+    final id = _uuid.v4();
+    await _db.child('stories').child(id).set({
+      'userId': userId,
+      'userDisplayName': userDisplayName,
+      'userPhotoURL': userPhotoURL,
+      'imageURL': b64,
+      'caption': caption,
+      'sdgGoals': sdgGoals,
+      'pointsAwarded': pointsAwarded,
+      'aiReason': aiReason,
+      'createdAt': ServerValue.timestamp,
+      'expiresAt':
+          DateTime.now().add(const Duration(hours: 24)).millisecondsSinceEpoch,
+      'viewedBy': [],
+    });
+    if (pointsAwarded > 0) await updateUserScore(userId, pointsAwarded);
   }
 
   static Future<void> markStoryViewed(String storyId, String userId) async {
-    await _db.collection('stories').doc(storyId).update({
-      'viewedBy': FieldValue.arrayUnion([userId]),
-    });
+    final ref = _db.child('stories').child(storyId).child('viewedBy');
+    final snap = await ref.get();
+    final list =
+        snap.value != null ? List<String>.from(snap.value as List) : <String>[];
+    if (!list.contains(userId)) {
+      list.add(userId);
+      await ref.set(list);
+    }
   }
 
-  static Stream<List<NGOModel>> watchTopNGOs() {
-    return _db
-        .collection(AppConstants.colNGOs)
-        .limit(10)
-        .snapshots()
-        .map((snap) => snap.docs.map(NGOModel.fromFirestore).toList());
+  static Future<void> deleteStory(String storyId) async {
+    await _db.child('stories').child(storyId).remove();
+  }
+
+  static Future<String> uploadTempImage(Uint8List bytes) async {
+    final id = _uuid.v4();
+    await _db.child('pending_uploads').child(id).set({
+      'userId': AuthService.currentUserId,
+      'base64': 'data:image/jpeg;base64,${base64.encode(bytes)}',
+      'createdAt': ServerValue.timestamp
+    });
+    return id;
+  }
+
+  static Future<Uint8List?> getTempImage(String id) async {
+    final snap = await _db.child('pending_uploads').child(id).get();
+    if (!snap.exists) return null;
+    final b64 = (snap.value as Map)['base64'] as String?;
+    return b64 != null ? base64Decode(b64.split(',').last) : null;
+  }
+
+  static Future<void> deleteTempImage(String id) async {
+    await _db.child('pending_uploads').child(id).remove();
   }
 }

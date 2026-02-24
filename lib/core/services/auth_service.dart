@@ -1,13 +1,20 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_database/firebase_database.dart';
 import '../constants/app_constants.dart';
 import '../models/user_model.dart';
 
 class AuthService {
   static final _auth = FirebaseAuth.instance;
-  static final _firestore = FirebaseFirestore.instance;
   static final _googleSignIn = GoogleSignIn();
+
+  // Use the same DB configuration as DatabaseService
+  static final _db = FirebaseDatabase.instanceFor(
+    app: Firebase.app(),
+    databaseURL:
+        'https://kitahack2026-f1f3e-default-rtdb.asia-southeast1.firebasedatabase.app',
+  ).ref();
 
   static Stream<User?> get authStateChanges => _auth.authStateChanges();
   static User? get currentUser => _auth.currentUser;
@@ -31,7 +38,8 @@ class AuthService {
   }
 
   /// Sign in with email & password
-  static Future<UserModel?> signInWithEmail(String email, String password) async {
+  static Future<UserModel?> signInWithEmail(
+      String email, String password) async {
     final credential = await _auth.signInWithEmailAndPassword(
       email: email,
       password: password,
@@ -55,16 +63,20 @@ class AuthService {
 
   /// Sign out
   static Future<void> signOut() async {
-    await _googleSignIn.signOut();
-    await _auth.signOut();
+    try {
+      await _googleSignIn.signOut();
+    } catch (_) {}
+    try {
+      await _auth.signOut();
+    } catch (_) {}
   }
 
-  /// Ensure Firestore user document exists (create if first login)
+  /// Ensure User document exists in RTDB
   static Future<UserModel> _ensureUserDocument(User user) async {
-    final docRef = _firestore.collection(AppConstants.colUsers).doc(user.uid);
-    final doc = await docRef.get();
+    final ref = _db.child(AppConstants.colUsers).child(user.uid);
+    final snapshot = await ref.get();
 
-    if (!doc.exists) {
+    if (!snapshot.exists) {
       final newUser = UserModel(
         uid: user.uid,
         displayName: user.displayName ?? 'SDG Champion',
@@ -72,16 +84,16 @@ class AuthService {
         photoURL: user.photoURL ?? '',
         joinedAt: DateTime.now(),
       );
-      await docRef.set(newUser.toFirestore());
+      await ref.set(newUser.toFirestore());
       return newUser;
     }
 
-    return UserModel.fromFirestore(doc);
+    return UserModel.fromMap(snapshot.value as Map, user.uid);
   }
 
   static Future<UserModel?> _getUser(String uid) async {
-    final doc = await _firestore.collection(AppConstants.colUsers).doc(uid).get();
-    if (!doc.exists) return null;
-    return UserModel.fromFirestore(doc);
+    final snapshot = await _db.child(AppConstants.colUsers).child(uid).get();
+    if (!snapshot.exists) return null;
+    return UserModel.fromMap(snapshot.value as Map, uid);
   }
 }

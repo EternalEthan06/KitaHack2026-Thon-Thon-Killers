@@ -22,6 +22,65 @@ class _PostCardState extends State<PostCard>
   late Animation<double> _heartScale;
   bool _showHeart = false;
 
+  void _showDeleteDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        title: const Text('Delete Post?'),
+        content: const Text('This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel',
+                style: TextStyle(color: AppTheme.onSurfaceMuted)),
+          ),
+          TextButton(
+            onPressed: () {
+              DatabaseService.deletePost(widget.post.id);
+              Navigator.pop(ctx);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditDialog() {
+    final ctrl = TextEditingController(text: widget.post.caption);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        title: const Text('Edit Caption'),
+        content: TextField(
+          controller: ctrl,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            hintText: 'Enter new caption...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel',
+                style: TextStyle(color: AppTheme.onSurfaceMuted)),
+          ),
+          TextButton(
+            onPressed: () {
+              DatabaseService.updatePostCaption(widget.post.id, ctrl.text);
+              Navigator.pop(ctx);
+            },
+            child:
+                const Text('Save', style: TextStyle(color: AppTheme.primary)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -47,7 +106,7 @@ class _PostCardState extends State<PostCard>
   void _doubleTapLike() {
     final uid = AuthService.currentUserId ?? '';
     final liked = widget.post.likedBy.contains(uid);
-    if (!liked) FirestoreService.toggleLike(widget.post.id, uid);
+    if (!liked) DatabaseService.toggleLike(widget.post.id, uid);
     setState(() => _showHeart = true);
     _heartController.forward(from: 0);
   }
@@ -146,9 +205,42 @@ class _PostCardState extends State<PostCard>
                               fontWeight: FontWeight.w600)),
                     ]),
                   ),
-                const SizedBox(width: 4),
-                const Icon(Icons.more_horiz,
-                    color: AppTheme.onSurfaceMuted, size: 20),
+                if (post.userId == uid)
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_horiz,
+                        color: AppTheme.onSurfaceMuted, size: 22),
+                    padding: EdgeInsets.zero,
+                    color: AppTheme.surface,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    onSelected: (value) {
+                      if (value == 'edit') {
+                        _showEditDialog();
+                      } else if (value == 'delete') {
+                        _showDeleteDialog();
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Row(children: [
+                          Icon(Icons.edit_rounded, size: 18),
+                          SizedBox(width: 10),
+                          Text('Edit Caption'),
+                        ]),
+                      ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(children: [
+                          Icon(Icons.delete_outline_rounded,
+                              size: 18, color: Colors.redAccent),
+                          SizedBox(width: 10),
+                          Text('Delete',
+                              style: TextStyle(color: Colors.redAccent)),
+                        ]),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -203,7 +295,7 @@ class _PostCardState extends State<PostCard>
                       : Icons.favorite_border_rounded,
                   color:
                       liked ? const Color(0xFFFF4D6A) : AppTheme.onSurfaceMuted,
-                  onTap: () => FirestoreService.toggleLike(post.id, uid),
+                  onTap: () => DatabaseService.toggleLike(post.id, uid),
                 ),
                 _ActionBtn(
                   icon: Icons.chat_bubble_outline_rounded,

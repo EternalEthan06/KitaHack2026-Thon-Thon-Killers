@@ -33,9 +33,19 @@ class StoryModel {
   bool get isViewed => viewedBy.contains(''); // filled client-side
 
   factory StoryModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    return StoryModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+  }
+
+  factory StoryModel.fromMap(Map<dynamic, dynamic> data, String id) {
+    DateTime parseDate(dynamic val, DateTime fallback) {
+      if (val is Timestamp) return val.toDate();
+      if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
+      if (val is String) return DateTime.tryParse(val) ?? fallback;
+      return fallback;
+    }
+
     return StoryModel(
-      id: doc.id,
+      id: id,
       userId: data['userId'] ?? '',
       userDisplayName: data['userDisplayName'] ?? '',
       userPhotoURL: data['userPhotoURL'] ?? '',
@@ -44,9 +54,9 @@ class StoryModel {
       sdgGoals: List<int>.from(data['sdgGoals'] ?? []),
       pointsAwarded: data['pointsAwarded'] ?? 0,
       aiReason: data['aiReason'] ?? '',
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      expiresAt: (data['expiresAt'] as Timestamp?)?.toDate() ??
-          DateTime.now().add(const Duration(hours: 24)),
+      createdAt: parseDate(data['createdAt'], DateTime.now()),
+      expiresAt: parseDate(
+          data['expiresAt'], DateTime.now().add(const Duration(hours: 24))),
       viewedBy: List<String>.from(data['viewedBy'] ?? []),
     );
   }

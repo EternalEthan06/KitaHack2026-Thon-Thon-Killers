@@ -3,6 +3,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../core/models/story_model.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/services/firestore_service.dart';
 
 class StoryViewerScreen extends StatefulWidget {
   final Map<String, List<StoryModel>> allGroupedStories;
@@ -139,6 +141,36 @@ class _UserStoryGroupState extends State<_UserStoryGroup>
     }
   }
 
+  void _showDeleteStoryDialog(String storyId) {
+    _progressController.stop();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        title: const Text('Delete Story?'),
+        content: const Text('This will remove your story for everyone.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _progressController.forward();
+            },
+            child: const Text('Cancel',
+                style: TextStyle(color: AppTheme.onSurfaceMuted)),
+          ),
+          TextButton(
+            onPressed: () {
+              DatabaseService.deleteStory(storyId);
+              Navigator.pop(ctx); // close dialog
+              Navigator.pop(context); // close story viewer
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _progressController.dispose();
@@ -270,6 +302,27 @@ class _UserStoryGroupState extends State<_UserStoryGroup>
             IconButton(
                 icon: const Icon(Icons.close, color: Colors.white),
                 onPressed: () => Navigator.of(context).pop()),
+            if (story.userId == AuthService.currentUserId)
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, color: Colors.white),
+                color: AppTheme.surface,
+                onSelected: (value) {
+                  if (value == 'delete') {
+                    _showDeleteStoryDialog(story.id);
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(children: [
+                      Icon(Icons.delete_outline_rounded,
+                          size: 18, color: Colors.redAccent),
+                      SizedBox(width: 10),
+                      Text('Delete', style: TextStyle(color: Colors.redAccent)),
+                    ]),
+                  ),
+                ],
+              ),
           ]),
         ),
         // Bottom: caption + AI analysis

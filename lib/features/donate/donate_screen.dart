@@ -28,11 +28,11 @@ class _DonateScreenState extends State<DonateScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: StreamBuilder<UserModel?>(
-        stream: FirestoreService.watchCurrentUser(),
+        stream: DatabaseService.watchCurrentUser(),
         builder: (ctx, userSnap) {
           final user = userSnap.data;
           return StreamBuilder<List<DonationProject>>(
-            stream: FirestoreService.watchDonationProjects(),
+            stream: DatabaseService.watchDonationProjects(),
             builder: (ctx, snap) {
               final allProjects = snap.data ?? [];
               // Distinct NGO names for filter
@@ -485,7 +485,7 @@ class _ProjectCard extends StatelessWidget {
                                     if (mode == 'money') {
                                       final amt = double.tryParse(ctrl.text);
                                       if (amt == null || amt <= 0) return;
-                                      await FirestoreService
+                                      await DatabaseService
                                           .donateMoneyToProject(
                                               userId: uid,
                                               project: project,
@@ -499,7 +499,7 @@ class _ProjectCard extends StatelessWidget {
                                     } else {
                                       final pts = int.tryParse(ctrl.text);
                                       if (pts == null || pts <= 0) return;
-                                      final success = await FirestoreService
+                                      final success = await DatabaseService
                                           .donatePointsToProject(
                                               userId: uid,
                                               project: project,

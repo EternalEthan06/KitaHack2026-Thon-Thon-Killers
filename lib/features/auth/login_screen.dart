@@ -18,30 +18,48 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _error;
 
   Future<void> _signInWithGoogle() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       await AuthService.signInWithGoogle();
       if (mounted) context.go('/home');
     } catch (e) {
-      setState(() { _error = 'Google sign-in failed. Please try again.'; });
+      setState(() {
+        _error = 'Google sign-in failed. Please try again.';
+      });
     } finally {
-      if (mounted) setState(() { _loading = false; });
+      if (mounted)
+        setState(() {
+          _loading = false;
+        });
     }
   }
 
   Future<void> _signInWithEmail() async {
     if (_emailCtrl.text.isEmpty || _passCtrl.text.isEmpty) {
-      setState(() { _error = 'Please enter email and password.'; });
+      setState(() {
+        _error = 'Please enter email and password.';
+      });
       return;
     }
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       await AuthService.signInWithEmail(_emailCtrl.text.trim(), _passCtrl.text);
       if (mounted) context.go('/home');
     } catch (e) {
-      setState(() { _error = 'Invalid email or password.'; });
+      setState(() {
+        _error = 'Login failed: $e';
+      });
     } finally {
-      if (mounted) setState(() { _loading = false; });
+      if (mounted)
+        setState(() {
+          _loading = false;
+        });
     }
   }
 
@@ -65,13 +83,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: const Text('🌱', style: TextStyle(fontSize: 40)),
               ),
               const SizedBox(height: 24),
-              Text('Welcome to\nSDG Connect', style: Theme.of(context).textTheme.headlineLarge),
+              Text('Welcome to\nSDG Connect',
+                  style: Theme.of(context).textTheme.headlineLarge),
               const SizedBox(height: 8),
               Text(
                 'Post SDG acts, earn points, change the world.',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppTheme.onSurfaceMuted,
-                ),
+                      color: AppTheme.onSurfaceMuted,
+                    ),
               ),
               const SizedBox(height: 40),
 
@@ -88,7 +107,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 const Expanded(child: Divider()),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text('or', style: Theme.of(context).textTheme.labelSmall),
+                  child:
+                      Text('or', style: Theme.of(context).textTheme.labelSmall),
                 ),
                 const Expanded(child: Divider()),
               ]),
@@ -115,7 +135,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: AppTheme.error.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Text(_error!, style: const TextStyle(color: AppTheme.error, fontSize: 13)),
+                  child: Text(_error!,
+                      style:
+                          const TextStyle(color: AppTheme.error, fontSize: 13)),
                 ),
               if (_error != null) const SizedBox(height: 12),
 

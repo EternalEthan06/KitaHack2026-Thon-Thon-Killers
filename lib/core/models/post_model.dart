@@ -42,16 +42,26 @@ class PostModel {
   });
 
   factory PostModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    return PostModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+  }
+
+  factory PostModel.fromMap(Map<dynamic, dynamic> data, String id) {
     final mainUrl = data['mediaURL'] as String? ?? '';
     final extras = List<String>.from(data['imageURLs'] ?? []);
-    // Merge into one deduplicated list (mediaURL first)
     final allImages = <String>[
       if (mainUrl.isNotEmpty) mainUrl,
       ...extras.where((u) => u != mainUrl)
     ];
+
+    DateTime parseDate(dynamic val) {
+      if (val is Timestamp) return val.toDate();
+      if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
+      if (val is String) return DateTime.tryParse(val) ?? DateTime.now();
+      return DateTime.now();
+    }
+
     return PostModel(
-      id: doc.id,
+      id: id,
       userId: data['userId'] ?? '',
       userDisplayName: data['userDisplayName'] ?? '',
       userPhotoURL: data['userPhotoURL'] ?? '',
@@ -65,7 +75,7 @@ class PostModel {
       aiReason: data['aiReason'] ?? '',
       likes: data['likes'] ?? 0,
       likedBy: List<String>.from(data['likedBy'] ?? []),
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      createdAt: parseDate(data['createdAt']),
       status: PostStatus.values.firstWhere(
         (s) => s.name == (data['status'] ?? 'pending'),
         orElse: () => PostStatus.pending,
@@ -87,7 +97,7 @@ class PostModel {
         'aiReason': aiReason,
         'likes': likes,
         'likedBy': likedBy,
-        'createdAt': Timestamp.fromDate(createdAt),
+        'createdAt': createdAt.millisecondsSinceEpoch,
         'status': status.name,
       };
 }

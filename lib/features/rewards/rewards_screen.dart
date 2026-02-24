@@ -66,7 +66,7 @@ class _RewardsScreenState extends State<RewardsScreen>
         ),
       ),
       body: StreamBuilder<UserModel?>(
-        stream: FirestoreService.watchCurrentUser(),
+        stream: DatabaseService.watchCurrentUser(),
         builder: (ctx, userSnap) {
           final user = userSnap.data;
           return Column(children: [
@@ -121,7 +121,7 @@ class _BrowseTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<RewardModel>>(
-      stream: FirestoreService.watchRewards(),
+      stream: DatabaseService.watchRewards(),
       builder: (context, snap) {
         if (!snap.hasData)
           return const Center(
@@ -334,10 +334,9 @@ class _RewardCard extends StatelessWidget {
   Future<void> _redeem(BuildContext context) async {
     final uid = AuthService.currentUserId;
     if (uid == null) return;
-    final u = await FirestoreService.getUser(uid);
+    final u = await DatabaseService.getUser(uid);
     if (u == null) return;
-    final success =
-        await FirestoreService.redeemReward(uid, reward, u.sdgScore);
+    final success = await DatabaseService.redeemReward(uid, reward, u.sdgScore);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(success
@@ -361,7 +360,7 @@ class _MyRewardsTab extends StatelessWidget {
     if (uid.isEmpty)
       return const Center(child: Text('Please sign in to view your rewards'));
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: FirestoreService.watchUserRedemptions(uid),
+      stream: DatabaseService.watchUserRedemptions(uid),
       builder: (ctx, snap) {
         if (!snap.hasData)
           return const Center(
@@ -426,8 +425,13 @@ class _HistoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ts = data['redeemedAt'] as Timestamp?;
-    final date = ts?.toDate();
+    final val = data['redeemedAt'];
+    DateTime? date;
+    if (val is Timestamp) {
+      date = val.toDate();
+    } else if (val is int) {
+      date = DateTime.fromMillisecondsSinceEpoch(val);
+    }
     final dateStr =
         date != null ? '${date.day}/${date.month}/${date.year}' : '—';
     final isPending = data['status'] == 'pending';

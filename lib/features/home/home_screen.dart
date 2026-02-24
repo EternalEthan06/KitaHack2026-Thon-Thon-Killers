@@ -28,10 +28,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _checkStoryRecovery() async {
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.containsKey('temp_story_bytes')) {
-      print('🛡️ HomeScreen: Unsaveds story detected, redirecting...');
-      if (mounted) {
-        context.push('/story/create');
+    if (prefs.containsKey('temp_story_doc_id')) {
+      // 🛡️ Only redirect if we are actually at the Home location
+      final location = GoRouterState.of(context).matchedLocation;
+      if (location == '/home' || location == '/') {
+        print(
+            '🛡️ HomeScreen: Pending story found in database, redirecting...');
+        if (mounted) {
+          context.push('/story/create');
+        }
       }
     }
   }
@@ -47,7 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<UserModel?>(
-      stream: FirestoreService.watchCurrentUser(),
+      stream: DatabaseService.watchCurrentUser(),
       builder: (context, snapshot) {
         final user = snapshot.data;
         return Scaffold(

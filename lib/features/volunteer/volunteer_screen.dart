@@ -53,7 +53,7 @@ class _EventsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<VolunteerEventModel>>(
-      stream: FirestoreService.watchVolunteerEvents(),
+      stream: DatabaseService.watchVolunteerEvents(),
       builder: (ctx, snap) {
         if (!snap.hasData)
           return const Center(
@@ -242,7 +242,7 @@ class _EventCard extends StatelessWidget {
     final uid = AuthService.currentUserId;
     if (uid == null) return;
     // Record as pending_approval — NO points awarded yet
-    await FirestoreService.registerForEvent(event.id, uid, event);
+    await DatabaseService.registerForEvent(event.id, uid, event);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: const Text(
@@ -266,7 +266,7 @@ class _CalendarTab extends StatelessWidget {
     if (uid.isEmpty)
       return const Center(child: Text('Sign in to see your calendar'));
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: FirestoreService.watchUserRegistrations(uid),
+      stream: DatabaseService.watchUserRegistrations(uid),
       builder: (ctx, snap) {
         if (!snap.hasData)
           return const Center(
@@ -277,8 +277,15 @@ class _CalendarTab extends StatelessWidget {
         // Group by month
         final grouped = <String, List<Map<String, dynamic>>>{};
         for (final r in registrations) {
-          final ts = r['date'] as Timestamp?;
-          final date = ts?.toDate() ?? DateTime.now();
+          final val = r['date'];
+          DateTime date;
+          if (val is Timestamp) {
+            date = val.toDate();
+          } else if (val is int) {
+            date = DateTime.fromMillisecondsSinceEpoch(val);
+          } else {
+            date = DateTime.now();
+          }
           final key = DateFormat('MMMM yyyy').format(date);
           grouped.putIfAbsent(key, () => []).add(r);
         }
@@ -355,8 +362,15 @@ class _CalendarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ts = data['date'] as Timestamp?;
-    final date = ts?.toDate() ?? DateTime.now();
+    final val = data['date'];
+    DateTime date;
+    if (val is Timestamp) {
+      date = val.toDate();
+    } else if (val is int) {
+      date = DateTime.fromMillisecondsSinceEpoch(val);
+    } else {
+      date = DateTime.now();
+    }
     final goals = List<int>.from(data['sdgGoals'] ?? []);
 
     return Container(

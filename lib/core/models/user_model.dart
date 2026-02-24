@@ -24,30 +24,40 @@ class UserModel {
   });
 
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    return UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+  }
+
+  factory UserModel.fromMap(Map<dynamic, dynamic> data, String id) {
+    DateTime? parseDate(dynamic val) {
+      if (val == null) return null;
+      if (val is Timestamp) return val.toDate();
+      if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
+      return DateTime.tryParse(val.toString());
+    }
+
     return UserModel(
-      uid: doc.id,
+      uid: id,
       displayName: data['displayName'] ?? '',
       email: data['email'] ?? '',
       photoURL: data['photoURL'] ?? '',
       sdgScore: data['sdgScore'] ?? 0,
       streak: data['streak'] ?? 0,
-      lastPostDate: (data['lastPostDate'] as Timestamp?)?.toDate(),
-      joinedAt: (data['joinedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      lastPostDate: parseDate(data['lastPostDate']),
+      joinedAt: parseDate(data['joinedAt']) ?? DateTime.now(),
       badges: List<String>.from(data['badges'] ?? []),
     );
   }
 
   Map<String, dynamic> toFirestore() => {
-    'displayName': displayName,
-    'email': email,
-    'photoURL': photoURL,
-    'sdgScore': sdgScore,
-    'streak': streak,
-    'lastPostDate': lastPostDate != null ? Timestamp.fromDate(lastPostDate!) : null,
-    'joinedAt': Timestamp.fromDate(joinedAt),
-    'badges': badges,
-  };
+        'displayName': displayName,
+        'email': email,
+        'photoURL': photoURL,
+        'sdgScore': sdgScore,
+        'streak': streak,
+        'lastPostDate': lastPostDate?.millisecondsSinceEpoch,
+        'joinedAt': joinedAt.millisecondsSinceEpoch,
+        'badges': badges,
+      };
 
   UserModel copyWith({
     String? displayName,

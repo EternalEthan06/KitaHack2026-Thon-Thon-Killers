@@ -53,12 +53,14 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBXsxv4l6EqarKi4u8kXDP3J7pEJwMjLQ8',
-    appId: '1:506439628414:web:946860e07170ad98610a2f',
-    messagingSenderId: '506439628414',
-    projectId: 'sdg-connect-ff16c',
-    authDomain: 'sdg-connect-ff16c.firebaseapp.com',
-    storageBucket: 'sdg-connect-ff16c.firebasestorage.app',
-    measurementId: 'G-DY51KCLPX2',
+    apiKey: 'AIzaSyBq2FNySm3Osmk5qg2qeASii_hW16kYNP0',
+    appId: '1:191724411395:web:000c25b292bf25abe6cc36',
+    messagingSenderId: '191724411395',
+    projectId: 'kitahack2026-f1f3e',
+    authDomain: 'kitahack2026-f1f3e.firebaseapp.com',
+    storageBucket: 'kitahack2026-f1f3e.firebasestorage.app',
+    measurementId: 'G-H9S7YH4NJN',
+    databaseURL:
+        'https://kitahack2026-f1f3e-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
 }

@@ -12,7 +12,7 @@ class MarketplaceScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('🛍️ NGO Marketplace')),
       body: StreamBuilder<List<MarketplaceProduct>>(
-        stream: FirestoreService.watchProducts(),
+        stream: DatabaseService.watchProducts(),
         builder: (context, snap) {
           if (!snap.hasData)
             return const Center(

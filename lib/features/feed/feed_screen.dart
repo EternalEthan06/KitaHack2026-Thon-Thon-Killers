@@ -36,7 +36,7 @@ class _FeedScreenState extends State<FeedScreen>
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<UserModel?>(
-      stream: FirestoreService.watchCurrentUser(),
+      stream: DatabaseService.watchCurrentUser(),
       builder: (context, userSnap) {
         final user = userSnap.data;
         return Scaffold(
@@ -165,12 +165,12 @@ class _ForYouTab extends StatelessWidget {
         if (isWide) {
           return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             // Posts + stories
-            Expanded(child: _PostList(stream: FirestoreService.watchFeed())),
+            Expanded(child: _PostList(stream: DatabaseService.watchFeed())),
             // Sidebar
             SizedBox(width: 300, child: _FeedSidebar()),
           ]);
         }
-        return _PostList(stream: FirestoreService.watchFeed());
+        return _PostList(stream: DatabaseService.watchFeed());
       },
     );
   }
@@ -186,27 +186,36 @@ class _SdgPostList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<PostModel>>(
-      stream: FirestoreService.watchSdgFeed(),
+      stream: DatabaseService.watchSdgFeed(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return SliverFillRemaining(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text('❌ SDG Feed Error: ${snapshot.error}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.redAccent)),
+          return CustomScrollView(
+            slivers: [
+              SliverFillRemaining(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text('❌ SDG Feed Error: ${snapshot.error}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.redAccent)),
+                  ),
+                ),
               ),
-            ),
+            ],
           );
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SliverToBoxAdapter(
-            child: SizedBox(
-              height: 200,
-              child: Center(
-                  child: CircularProgressIndicator(color: AppTheme.primary)),
-            ),
+          return const CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 200,
+                  child: Center(
+                      child:
+                          CircularProgressIndicator(color: AppTheme.primary)),
+                ),
+              ),
+            ],
           );
         }
         final allPosts = snapshot.data ?? [];
@@ -289,20 +298,29 @@ class _PostList extends StatelessWidget {
       stream: stream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return SliverFillRemaining(
-            child: Center(
-              child: Text('❌ Stream Error: ${snapshot.error}',
-                  style: const TextStyle(color: Colors.redAccent)),
-            ),
+          return CustomScrollView(
+            slivers: [
+              SliverFillRemaining(
+                child: Center(
+                  child: Text('❌ Stream Error: ${snapshot.error}',
+                      style: const TextStyle(color: Colors.redAccent)),
+                ),
+              ),
+            ],
           );
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SliverToBoxAdapter(
-            child: SizedBox(
-              height: 200,
-              child: Center(
-                  child: CircularProgressIndicator(color: AppTheme.primary)),
-            ),
+          return const CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 200,
+                  child: Center(
+                      child:
+                          CircularProgressIndicator(color: AppTheme.primary)),
+                ),
+              ),
+            ],
           );
         }
         final posts = snapshot.data ?? [];
@@ -392,7 +410,7 @@ class _ContributorsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: FirestoreService.watchTopContributors(),
+      stream: DatabaseService.watchTopContributors(),
       builder: (ctx, snap) {
         if (!snap.hasData)
           return const Center(
@@ -477,7 +495,7 @@ class _TopNGOsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<NGOModel>>(
-      stream: FirestoreService.watchTopNGOs(),
+      stream: DatabaseService.watchTopNGOs(),
       builder: (ctx, snap) {
         if (!snap.hasData)
           return const Center(

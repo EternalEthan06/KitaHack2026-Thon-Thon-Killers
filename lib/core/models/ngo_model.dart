@@ -22,15 +22,27 @@ class NGOModel {
   });
 
   factory NGOModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    return NGOModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+  }
+
+  factory NGOModel.fromMap(Map<dynamic, dynamic> data, String id) {
+    GeoPoint? parseLoc(dynamic val) {
+      if (val is GeoPoint) return val;
+      if (val is Map) {
+        return GeoPoint(
+            (val['lat'] ?? 0).toDouble(), (val['lng'] ?? 0).toDouble());
+      }
+      return null;
+    }
+
     return NGOModel(
-      id: doc.id,
+      id: id,
       name: data['name'] ?? '',
       description: data['description'] ?? '',
       logoURL: data['logoURL'] ?? '',
       sdgGoals: List<int>.from(data['sdgGoals'] ?? []),
       contactEmail: data['contactEmail'] ?? '',
-      location: data['location'] as GeoPoint?,
+      location: parseLoc(data['location']),
       address: data['address'] ?? '',
     );
   }
@@ -66,16 +78,36 @@ class VolunteerEventModel {
   });
 
   factory VolunteerEventModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    return VolunteerEventModel.fromMap(
+        doc.data() as Map<String, dynamic>, doc.id);
+  }
+
+  factory VolunteerEventModel.fromMap(Map<dynamic, dynamic> data, String id) {
+    DateTime parseDate(dynamic val) {
+      if (val is Timestamp) return val.toDate();
+      if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
+      if (val is String) return DateTime.tryParse(val) ?? DateTime.now();
+      return DateTime.now();
+    }
+
+    GeoPoint? parseLoc(dynamic val) {
+      if (val is GeoPoint) return val;
+      if (val is Map) {
+        return GeoPoint(
+            (val['lat'] ?? 0).toDouble(), (val['lng'] ?? 0).toDouble());
+      }
+      return null;
+    }
+
     return VolunteerEventModel(
-      id: doc.id,
+      id: id,
       ngoId: data['ngoId'] ?? '',
       ngoName: data['ngoName'] ?? '',
       title: data['title'] ?? '',
       description: data['description'] ?? '',
-      location: data['location'] as GeoPoint?,
+      location: parseLoc(data['location']),
       address: data['address'] ?? '',
-      date: (data['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      date: parseDate(data['date']),
       sdgGoals: List<int>.from(data['sdgGoals'] ?? []),
       sdgPointsReward: data['sdgPointsReward'] ?? 50,
       registeredUsers: List<String>.from(data['registeredUsers'] ?? []),
@@ -108,9 +140,13 @@ class MarketplaceProduct {
   });
 
   factory MarketplaceProduct.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    return MarketplaceProduct.fromMap(
+        doc.data() as Map<String, dynamic>, doc.id);
+  }
+
+  factory MarketplaceProduct.fromMap(Map<dynamic, dynamic> data, String id) {
     return MarketplaceProduct(
-      id: doc.id,
+      id: id,
       ngoId: data['ngoId'] ?? '',
       ngoName: data['ngoName'] ?? '',
       name: data['name'] ?? '',
@@ -128,7 +164,7 @@ class RewardModel {
   final String title;
   final String description;
   final int costInScore;
-  final String type; // 'voucher' | 'tree' | 'badge'
+  final String type;
   final String imageURL;
   final bool available;
 
@@ -143,9 +179,12 @@ class RewardModel {
   });
 
   factory RewardModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    return RewardModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+  }
+
+  factory RewardModel.fromMap(Map<dynamic, dynamic> data, String id) {
     return RewardModel(
-      id: doc.id,
+      id: id,
       title: data['title'] ?? '',
       description: data['description'] ?? '',
       costInScore: data['costInScore'] ?? 0,
@@ -164,10 +203,10 @@ class DonationProject {
   final String description;
   final String imageURL;
   final List<int> sdgGoals;
-  final List<String> neededItems; // e.g. ['100 seedlings', '5 shovels']
-  final double targetAmount; // in RM
+  final List<String> neededItems;
+  final double targetAmount;
   final double raisedAmount;
-  final int targetPoints; // in SDG points
+  final int targetPoints;
   final int raisedPoints;
   final DateTime endDate;
   final bool active;
@@ -195,9 +234,19 @@ class DonationProject {
       targetPoints > 0 ? (raisedPoints / targetPoints).clamp(0, 1) : 0;
 
   factory DonationProject.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    return DonationProject.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+  }
+
+  factory DonationProject.fromMap(Map<dynamic, dynamic> data, String id) {
+    DateTime parseDate(dynamic val) {
+      if (val is Timestamp) return val.toDate();
+      if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
+      if (val is String) return DateTime.tryParse(val) ?? DateTime.now();
+      return DateTime.now();
+    }
+
     return DonationProject(
-      id: doc.id,
+      id: id,
       ngoId: data['ngoId'] ?? '',
       ngoName: data['ngoName'] ?? '',
       title: data['title'] ?? '',
@@ -209,8 +258,7 @@ class DonationProject {
       raisedAmount: (data['raisedAmount'] ?? 0).toDouble(),
       targetPoints: data['targetPoints'] ?? 0,
       raisedPoints: data['raisedPoints'] ?? 0,
-      endDate: (data['endDate'] as Timestamp?)?.toDate() ??
-          DateTime.now().add(const Duration(days: 30)),
+      endDate: parseDate(data['endDate']),
       active: data['active'] ?? true,
     );
   }

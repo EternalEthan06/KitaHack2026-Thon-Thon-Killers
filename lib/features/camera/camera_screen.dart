@@ -71,7 +71,7 @@ class _CameraScreenState extends State<CameraScreen> {
 
     try {
       final uid = AuthService.currentUserId!;
-      final userDoc = await FirestoreService.getUser(uid);
+      final userDoc = await DatabaseService.getUser(uid);
       if (userDoc == null) return;
 
       // Safety check for SDG posts
@@ -95,7 +95,7 @@ class _CameraScreenState extends State<CameraScreen> {
 
       // Create post in Firestore + upload media
       setState(() => _status = 'Creating post...');
-      final post = await FirestoreService.createPostFromBytes(
+      final post = await DatabaseService.createPostFromBytes(
         imageBytes: _imageBytes!,
         fileName: _selectedFile!.name,
         caption: _captionCtrl.text,
@@ -112,7 +112,7 @@ class _CameraScreenState extends State<CameraScreen> {
           final isAccepted =
               result['is_sdg_related'] == true && (result['score'] ?? 0) > 20;
 
-          await FirestoreService.updatePostScore(
+          await DatabaseService.updatePostScore(
             postId: post.id,
             userId: uid,
             score: result['score'] ?? 0,
@@ -126,7 +126,7 @@ class _CameraScreenState extends State<CameraScreen> {
           });
         } else {
           // Default points for gallery upload
-          await FirestoreService.updatePostScore(
+          await DatabaseService.updatePostScore(
             postId: post.id,
             userId: uid,
             score: 10,

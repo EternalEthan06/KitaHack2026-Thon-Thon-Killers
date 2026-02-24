@@ -1,1 +1,28 @@
-{"flutter":{"platforms":{"dart":{"lib/firebase_options.dart":{"projectId":"sdg-connect-ff16c","configurations":{"web":"1:506439628414:web:946860e07170ad98610a2f"}}}}}}
+{
+    "hosting": {
+        "public": "build/web",
+        "ignore": [
+            "firebase.json",
+            "**/.*",
+            "**/node_modules/**"
+        ],
+        "rewrites": [
+            {
+                "source": "**",
+                "destination": "/index.html"
+            }
+        ]
+    },
+    "flutter": {
+        "platforms": {
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "kitahack2026-f1f3e",
+                    "configurations": {
+                        "web": "1:191724411395:web:000c25b292bf25abe6cc36"
+                    }
+                }
+            }
+        }
+    }
+}

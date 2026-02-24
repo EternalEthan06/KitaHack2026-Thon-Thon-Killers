@@ -20,21 +20,27 @@ class AppRouter {
     refreshListenable: AuthListenable(),
     redirect: (context, state) {
       final user = FirebaseAuth.instance.currentUser;
-      final loggingIn = state.matchedLocation.startsWith('/login') ||
-          state.matchedLocation.startsWith('/register');
+      final location = state.matchedLocation;
+      final isAuthPage =
+          location.startsWith('/login') || location.startsWith('/register');
 
-      // 🛑 CRITICAL: Don't redirect if we are simply "reloading" a sub-page.
-      // This allows the /story/create URL to persist during a browser refresh.
-      if (state.matchedLocation == '/story/create' ||
-          state.matchedLocation == '/camera') {
+      print(
+          '🛤️ ROUTER: [User: ${user?.uid != null ? 'Logged In' : 'Logged Out'}] [Location: $location]');
+
+      // 🛡️ REFRESH SHIELD
+      if (location == '/story/create' || location == '/camera') {
         return null;
       }
 
-      if (user == null && !loggingIn) {
+      // If not logged in and not on an auth page, go to login
+      if (user == null && !isAuthPage) {
+        print('🛤️ ROUTER: 🚩 Redirecting to /login');
         return '/login';
       }
 
-      if (user != null && loggingIn) {
+      // If logged in and trying to go to login, go home
+      if (user != null && isAuthPage) {
+        print('🛤️ ROUTER: 🏠 Redirecting to /home');
         return '/home';
       }
 

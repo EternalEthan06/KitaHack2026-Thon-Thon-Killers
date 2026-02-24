@@ -18,8 +18,8 @@ class ProfileScreen extends StatelessWidget {
     return Scaffold(
       body: StreamBuilder<UserModel?>(
         stream: _isOwn
-            ? FirestoreService.watchCurrentUser()
-            : Stream.fromFuture(FirestoreService.getUser(userId)),
+            ? DatabaseService.watchCurrentUser()
+            : Stream.fromFuture(DatabaseService.getUser(userId)),
         builder: (context, userSnap) {
           final user = userSnap.data;
           return CustomScrollView(
@@ -32,10 +32,16 @@ class ProfileScreen extends StatelessWidget {
                   if (_isOwn)
                     TextButton(
                       onPressed: () async {
+                        print('🔌 PROFILE: Sign out sequence started...');
                         await AuthService.signOut();
-                        if (context.mounted) context.go('/login');
+                        print(
+                            '🔌 PROFILE: Auth state cleared. Redirection starting...');
+                        if (context.mounted) {
+                          GoRouter.of(context).go('/login');
+                        }
                       },
-                      child: const Text('Sign Out', style: TextStyle(color: AppTheme.error)),
+                      child: const Text('Sign Out',
+                          style: TextStyle(color: AppTheme.error)),
                     ),
                 ],
                 flexibleSpace: FlexibleSpaceBar(
@@ -57,18 +63,34 @@ class ProfileScreen extends StatelessWidget {
                                 CircleAvatar(
                                   radius: 36,
                                   backgroundColor: AppTheme.surfaceVariant,
-                                  child: Text(user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?',
-                                      style: const TextStyle(fontSize: 30, color: AppTheme.primary, fontWeight: FontWeight.bold)),
+                                  child: Text(
+                                      user.displayName.isNotEmpty
+                                          ? user.displayName[0].toUpperCase()
+                                          : '?',
+                                      style: const TextStyle(
+                                          fontSize: 30,
+                                          color: AppTheme.primary,
+                                          fontWeight: FontWeight.bold)),
                                 ),
                                 const SizedBox(height: 8),
-                                Text(user.displayName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
+                                Text(user.displayName,
+                                    style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white)),
                                 const SizedBox(height: 12),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    _StatChip(label: 'SDG Score', value: '${user.sdgScore}', icon: '🌱'),
+                                    _StatChip(
+                                        label: 'SDG Score',
+                                        value: '${user.sdgScore}',
+                                        icon: '🌱'),
                                     const SizedBox(width: 12),
-                                    _StatChip(label: 'Streak', value: '🔥 ${user.streak}d', icon: ''),
+                                    _StatChip(
+                                        label: 'Streak',
+                                        value: '🔥 ${user.streak}d',
+                                        icon: ''),
                                   ],
                                 ),
                               ],
@@ -85,7 +107,13 @@ class ProfileScreen extends StatelessWidget {
                     padding: const EdgeInsets.all(16),
                     child: Wrap(
                       spacing: 8,
-                      children: user.badges.map((b) => Chip(label: Text(b), backgroundColor: AppTheme.primary.withOpacity(0.1), side: BorderSide.none)).toList(),
+                      children: user.badges
+                          .map((b) => Chip(
+                              label: Text(b),
+                              backgroundColor:
+                                  AppTheme.primary.withOpacity(0.1),
+                              side: BorderSide.none))
+                          .toList(),
                     ),
                   ),
                 ),
@@ -93,17 +121,23 @@ class ProfileScreen extends StatelessWidget {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: Text('Posts', style: Theme.of(context).textTheme.titleMedium),
+                  child: Text('Posts',
+                      style: Theme.of(context).textTheme.titleMedium),
                 ),
               ),
 
               StreamBuilder<List<PostModel>>(
-                stream: FirestoreService.watchUserPosts(userId),
+                stream: DatabaseService.watchUserPosts(userId),
                 builder: (ctx, snap) {
                   final posts = snap.data ?? [];
                   if (posts.isEmpty) {
                     return const SliverToBoxAdapter(
-                      child: Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No posts yet.', style: TextStyle(color: AppTheme.onSurfaceMuted)))),
+                      child: Center(
+                          child: Padding(
+                              padding: EdgeInsets.all(32),
+                              child: Text('No posts yet.',
+                                  style: TextStyle(
+                                      color: AppTheme.onSurfaceMuted)))),
                     );
                   }
                   return SliverList(
@@ -127,17 +161,24 @@ class _StatChip extends StatelessWidget {
   final String label;
   final String value;
   final String icon;
-  const _StatChip({required this.label, required this.value, required this.icon});
+  const _StatChip(
+      {required this.label, required this.value, required this.icon});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+          color: Colors.black26, borderRadius: BorderRadius.circular(12)),
       child: Column(
         children: [
-          Text('$icon $value', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
-          Text(label, style: const TextStyle(fontSize: 10, color: Colors.white70)),
+          Text('$icon $value',
+              style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white)),
+          Text(label,
+              style: const TextStyle(fontSize: 10, color: Colors.white70)),
         ],
       ),
     );
