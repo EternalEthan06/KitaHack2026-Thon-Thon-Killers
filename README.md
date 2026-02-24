@@ -90,5 +90,8 @@ lib/
 
 ## 🏆 Team: Thon Thon Killers
 Built with ❤️ for **KitaHack 2026**.
-- **Ethan Tiang** - Lead Developer
+- **Ethan Tiang**
+- **Chloe Lai Phui Yan**
+- **Lee Jasmin**
+- **Wong Kai Heng**
 - Powered by **Google Cloud** & **Flutter**
