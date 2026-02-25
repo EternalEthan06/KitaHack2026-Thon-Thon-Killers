@@ -6,7 +6,7 @@ import '../../features/home/home_screen.dart';
 import '../../features/camera/camera_screen.dart';
 import '../../features/post_detail/post_detail_screen.dart';
 import '../../features/profile/profile_screen.dart';
-import '../../features/rewards/rewards_screen.dart';
+import '../../features/rewards/missions_screen.dart';
 import '../../features/volunteer/volunteer_screen.dart';
 import '../../features/donate/donate_screen.dart';
 import '../../features/marketplace/marketplace_screen.dart';
@@ -63,7 +63,7 @@ class AppRouter {
         path: '/profile/:uid',
         builder: (c, s) => ProfileScreen(userId: s.pathParameters['uid']!),
       ),
-      GoRoute(path: '/rewards', builder: (c, s) => const RewardsScreen()),
+      GoRoute(path: '/missions', builder: (c, s) => const MissionsScreen()),
       GoRoute(path: '/volunteer', builder: (c, s) => const VolunteerScreen()),
       GoRoute(path: '/donate', builder: (c, s) => const DonateScreen()),
       GoRoute(

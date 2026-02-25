@@ -59,7 +59,7 @@ class _FeedScreenState extends State<FeedScreen>
                     child: const Text('🌱', style: TextStyle(fontSize: 16)),
                   ),
                   const SizedBox(width: 8),
-                  const Text('SDG Connect',
+                  const Text('EcoRise',
                       style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 20,
@@ -325,11 +325,14 @@ class _PostList extends StatelessWidget {
         }
         final posts = snapshot.data ?? [];
         return CustomScrollView(primary: false, slivers: [
-          // Stories bar
+          // Stories
           const SliverToBoxAdapter(
-              child: Padding(
-                  padding: EdgeInsets.only(top: 10), child: StoryBar())),
-          const SliverToBoxAdapter(child: Divider(height: 12)),
+            child: Column(children: [
+              SizedBox(height: 10),
+              StoryBar(),
+              SizedBox(height: 10),
+            ]),
+          ),
           // Posts
           if (posts.isEmpty)
             SliverFillRemaining(

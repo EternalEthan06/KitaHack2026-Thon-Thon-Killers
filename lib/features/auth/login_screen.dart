@@ -83,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: const Text('🌱', style: TextStyle(fontSize: 40)),
               ),
               const SizedBox(height: 24),
-              Text('Welcome to\nSDG Connect',
+              Text('Welcome to\nEcoRise',
                   style: Theme.of(context).textTheme.headlineLarge),
               const SizedBox(height: 8),
               Text(

@@ -32,8 +32,8 @@ class _CameraScreenState extends State<CameraScreen> {
   Future<void> _pickImage(ImageSource source) async {
     final picked = await _picker.pickImage(
       source: source,
-      imageQuality: source == ImageSource.camera ? 15 : 30,
-      maxWidth: 512,
+      imageQuality: source == ImageSource.camera ? 50 : 50,
+      maxWidth: 1024,
     );
     if (picked == null) return;
     final bytes = await picked.readAsBytes();
@@ -74,74 +74,80 @@ class _CameraScreenState extends State<CameraScreen> {
       final userDoc = await DatabaseService.getUser(uid);
       if (userDoc == null) return;
 
-      // Safety check for SDG posts
-      if (_postType == PostType.sdg) {
-        setState(() => _status = 'Checking content safety...');
-        final safe =
-            await GeminiService.instance.isImageSafeFromBytes(_imageBytes!);
-        if (!safe) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content:
-                    Text('This image is not appropriate for our platform.')));
-          }
-          setState(() {
-            _loading = false;
-            _status = '';
-          });
-          return;
+      // 🛡️ UNIVERSAL SAFETY CHECK (All types, Camera & Gallery)
+      setState(() => _status = 'Checking content safety...');
+      final safe =
+          await GeminiService.instance.isImageSafeFromBytes(_imageBytes!);
+      if (!safe) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text(
+                  'This image is not appropriate for our family-friendly platform.')));
         }
+        setState(() {
+          _loading = false;
+          _status = '';
+        });
+        return;
       }
 
-      // Create post in Firestore + upload media
-      setState(() => _status = 'Creating post...');
+      // 🧪 SDG Analysis (from both Camera and Gallery)
+      setState(() => _status = '🤖 Analysing SDG impact with Gemini AI...');
+      final authUser = AuthService.currentUser;
       final post = await DatabaseService.createPostFromBytes(
         imageBytes: _imageBytes!,
         fileName: _selectedFile!.name,
         caption: _captionCtrl.text,
-        type: _postType,
-        author: userDoc,
+        type: PostType.sdg,
+        author: userDoc.copyWith(
+          displayName: (authUser?.displayName != null &&
+                  authUser!.displayName!.isNotEmpty)
+              ? authUser.displayName
+              : userDoc.displayName,
+          photoURL:
+              (authUser?.photoURL != null && authUser!.photoURL!.isNotEmpty)
+                  ? authUser.photoURL
+                  : userDoc.photoURL,
+        ),
       );
 
-      // Score SDG posts with Gemini (ONLY if from live camera)
-      if (_postType == PostType.sdg) {
-        if (_isFromCamera) {
-          setState(() => _status = '🤖 Analysing SDG impact with Gemini AI...');
-          final result =
-              await GeminiService.instance.scoreSdgPostFromBytes(_imageBytes!);
-          final isAccepted =
-              result['is_sdg_related'] == true && (result['score'] ?? 0) > 20;
+      if (_isFromCamera) {
+        final result =
+            await GeminiService.instance.scoreSdgPostFromBytes(_imageBytes!);
 
-          await DatabaseService.updatePostScore(
-            postId: post.id,
-            userId: uid,
-            score: result['score'] ?? 0,
-            sdgGoals: List<int>.from(result['sdg_goals'] ?? []),
-            aiReason: result['reason'] ?? '',
-            isAccepted: isAccepted,
-          );
+        // We accept ALL valid posts as long as they are safe.
+        // If it's not SDG related, they just get 0 points.
 
-          setState(() {
-            _scoreResult = result;
-          });
-        } else {
-          // Default points for gallery upload
-          await DatabaseService.updatePostScore(
-            postId: post.id,
-            userId: uid,
-            score: 10,
-            sdgGoals: [],
-            aiReason: 'Gallery upload skipped AI analysis.',
-            isAccepted: true,
-          );
-          setState(() {
-            _scoreResult = {
-              'score': 10,
-              'reason': 'Gallery upload skipped AI analysis.',
-              'sdg_goals': [],
-            };
-          });
-        }
+        await DatabaseService.updatePostScore(
+          postId: post.id,
+          userId: uid,
+          score: result['score'] ?? 0,
+          sdgGoals: List<int>.from(result['sdg_goals'] ?? []),
+          aiReason: result['reason'] ?? '',
+          isAccepted: true, // Always accept (let them see their post)
+        );
+
+        setState(() {
+          _scoreResult = result;
+        });
+      } else {
+        // Zero points for gallery upload
+        await DatabaseService.updatePostScore(
+          postId: post.id,
+          userId: uid,
+          score: 0,
+          sdgGoals: [],
+          aiReason: 'Gallery upload. No points awarded (Live proof required).',
+          isAccepted: true,
+        );
+        setState(() {
+          _scoreResult = {
+            'score': 0,
+            'reason':
+                'Gallery upload. Points are only awarded for live camera captures to ensure authenticity.',
+            'sdg_goals': [],
+          };
+        });
       }
 
       setState(() {
@@ -177,36 +183,28 @@ class _CameraScreenState extends State<CameraScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Post type toggle
-          Row(
-            children: [
-              _TypeChip(
-                label: '🌱 SDG Post',
-                selected: _postType == PostType.sdg,
-                onTap: () => setState(() => _postType = PostType.sdg),
-              ),
-              const SizedBox(width: 10),
-              _TypeChip(
-                label: '📷 Normal Post',
-                selected: _postType == PostType.normal,
-                onTap: () => setState(() => _postType = PostType.normal),
-              ),
-            ],
-          ),
-          if (_postType == PostType.sdg)
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppTheme.primary.withOpacity(0.2)),
-              ),
-              child: const Text(
-                '🤖 Gemini AI will analyse your photo and give you an SDG Impact Score!',
-                style: TextStyle(color: AppTheme.primary, fontSize: 13),
-              ),
+          // AI Info Box
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppTheme.primary.withOpacity(0.2)),
             ),
+            child: Text(
+              _imageBytes != null && !_isFromCamera
+                  ? '⚠️ Gallery uploads do not earn SDG points. Use the Live Camera for impact points!'
+                  : '🤖 Gemini AI will analyse your photo and give you an SDG Impact Score!',
+              style: TextStyle(
+                  color: _imageBytes != null && !_isFromCamera
+                      ? Colors.orangeAccent
+                      : AppTheme.primary,
+                  fontSize: 13,
+                  fontWeight: _imageBytes != null && !_isFromCamera
+                      ? FontWeight.bold
+                      : FontWeight.normal),
+            ),
+          ),
 
           const SizedBox(height: 20),
 
@@ -376,40 +374,6 @@ class _CameraScreenState extends State<CameraScreen> {
               },
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TypeChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _TypeChip(
-      {required this.label, required this.selected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: selected ? AppTheme.primary : AppTheme.surfaceVariant,
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(
-              color: selected ? AppTheme.primary : Colors.transparent),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? Colors.black : AppTheme.onSurfaceMuted,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.normal,
-            fontSize: 13,
-          ),
         ),
       ),
     );

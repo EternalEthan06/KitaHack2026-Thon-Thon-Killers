@@ -8,7 +8,9 @@ import '../models/post_model.dart';
 import '../models/user_model.dart';
 import '../models/ngo_model.dart';
 import '../models/story_model.dart';
+import '../models/daily_task_model.dart';
 import 'auth_service.dart';
+import 'gemini_service.dart';
 
 class DatabaseService {
   static final _db = FirebaseDatabase.instanceFor(
@@ -144,14 +146,20 @@ class DatabaseService {
         .child(AppConstants.colPosts)
         .onValue
         .map<List<PostModel>>((event) {
-      print(
-          '📥 watchFeed: Data received! (Snapshot exists: ${event.snapshot.exists})');
       if (event.snapshot.value == null) return [];
       final data = event.snapshot.value as Map<dynamic, dynamic>;
+
       final posts = data.entries
           .map((e) => PostModel.fromMap(e.value as Map, e.key))
-          .where((p) => p.status != PostStatus.rejected)
-          .toList();
+          .where((p) {
+        // Normal posts appear as long as they aren't rejected
+        if (p.type == PostType.normal) {
+          return p.status != PostStatus.rejected;
+        }
+        // SDG posts appear ONLY if they are certified (scored)
+        return p.status == PostStatus.scored;
+      }).toList();
+
       posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return posts.take(50).toList();
     }).handleError((e) {
@@ -178,6 +186,7 @@ class DatabaseService {
       final data = event.snapshot.value as Map<dynamic, dynamic>;
       final posts = data.entries
           .map((e) => PostModel.fromMap(e.value as Map, e.key))
+          // SDG Posts feed ONLY shows certified SDG actions
           .where((p) => p.type == PostType.sdg && p.status == PostStatus.scored)
           .toList();
       posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -198,21 +207,121 @@ class DatabaseService {
     });
   }
 
+  // ═══════════════════════════════════════════
+  // DAILY TASKS & STREAKS
+  // ═══════════════════════════════════════════
+
+  static String _getTodayKey() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month}-${now.day}';
+  }
+
+  static double calculateMultiplier(int streak) {
+    if (streak < 1) return 1.0;
+    // user: 15 days = x2. max x5.
+    // Formula: (streak / 15) + 1.0
+    double mult = 1.0 + (streak / 15.0);
+    return mult.clamp(1.0, AppConstants.maxMultiplier);
+  }
+
+  static Future<DailyTaskModel?> getDailyTask() async {
+    final uid = AuthService.currentUserId;
+    if (uid == null) return null;
+
+    final today = _getTodayKey();
+    final ref = _db.child('daily_tasks').child(uid).child(today);
+    final snap = await ref.get();
+
+    if (snap.exists) {
+      return DailyTaskModel.fromMap(snap.value as Map, snap.key!);
+    }
+
+    // Generate new task using AI
+    print('🤖 AI: Generating new daily task for $today...');
+    final taskData = await GeminiService.instance.generateDailyTask();
+    final task = DailyTaskModel(
+      id: today,
+      title: taskData['title'] ?? 'Eco Hero',
+      description: taskData['description'] ?? 'Do something good today!',
+      sdgGoals: List<int>.from(taskData['sdgGoals'] ?? []),
+      points: taskData['points'] ?? 20,
+      difficulty: taskData['difficulty'] ?? 'Easy',
+      date: DateTime.now(),
+    );
+
+    await ref.set(task.toMap());
+    return task;
+  }
+
+  static Future<DailyTaskModel?> regenerateDailyTask() async {
+    final uid = AuthService.currentUserId;
+    if (uid == null) return null;
+
+    final today = _getTodayKey();
+    final ref = _db.child('daily_tasks').child(uid).child(today);
+
+    print('🤖 AI: Regenerating new daily task for $today...');
+    final taskData = await GeminiService.instance.generateDailyTask();
+    final task = DailyTaskModel(
+      id: today,
+      title: taskData['title'] ?? 'Eco Hero',
+      description: taskData['description'] ?? 'Do something good today!',
+      sdgGoals: List<int>.from(taskData['sdgGoals'] ?? []),
+      points: taskData['points'] ?? 20,
+      difficulty: taskData['difficulty'] ?? 'Easy',
+      date: DateTime.now(),
+    );
+
+    await ref.set(task.toMap());
+    return task;
+  }
+
+  static Future<void> completeDailyTask(DailyTaskModel task) async {
+    final uid = AuthService.currentUserId;
+    if (uid == null) return;
+
+    final user = await getUser(uid);
+    if (user == null) return;
+
+    final multiplier = calculateMultiplier(user.streak);
+    final finalPoints = (task.points * multiplier).round();
+
+    await _db.child('daily_tasks').child(uid).child(task.id).update({
+      'isCompleted': true,
+    });
+
+    // Update score and streak timestamp
+    await _db.child(AppConstants.colUsers).child(uid).update({
+      'sdgScore': user.sdgScore + finalPoints,
+      'lastPostDate': ServerValue.timestamp,
+    });
+
+    print('✅ Task completed! ${task.points} x $multiplier = $finalPoints pts');
+  }
+
   static Future<void> _updateStreak(String userId) async {
     final snap = await _db.child(AppConstants.colUsers).child(userId).get();
     if (!snap.exists) return;
     final user = UserModel.fromMap(snap.value as Map, snap.key!);
     final now = DateTime.now();
     final lastPost = user.lastPostDate;
+
     int newStreak = user.streak;
     if (lastPost == null) {
       newStreak = 1;
     } else {
-      final diff = now.difference(lastPost).inDays;
-      if (diff == 1)
+      final lastDate = lastPost;
+      final diff = DateTime(now.year, now.month, now.day)
+          .difference(DateTime(lastDate.year, lastDate.month, lastDate.day))
+          .inDays;
+
+      if (diff == 1) {
         newStreak += 1;
-      else if (diff > 1) newStreak = 1;
+      } else if (diff > 1) {
+        newStreak = 1;
+      }
     }
+
     await _db
         .child(AppConstants.colUsers)
         .child(userId)
@@ -278,22 +387,17 @@ class DatabaseService {
   // ═══════════════════════════════════════════
 
   static Stream<List<VolunteerEventModel>> watchVolunteerEvents() {
-    print(
-        '📡 watchVolunteerEvents: Listening to ${AppConstants.colVolunteerEvents}...');
-    return _db
-        .child(AppConstants.colVolunteerEvents)
-        .onValue
-        .map<List<VolunteerEventModel>>((event) {
-      print(
-          '📥 watchVolunteerEvents: Data received! (Snapshot exists: ${event.snapshot.exists})');
+    return _db.child(AppConstants.colVolunteerEvents).onValue.map((event) {
       if (event.snapshot.value == null) return [];
-      final data = event.snapshot.value as Map<dynamic, dynamic>;
-      return data.entries
-          .map((e) => VolunteerEventModel.fromMap(e.value as Map, e.key))
-          .toList();
-    }).handleError((e) {
-      print('❌ ERROR in watchVolunteerEvents: $e');
-      return <VolunteerEventModel>[];
+      try {
+        final data = event.snapshot.value as Map<dynamic, dynamic>;
+        return data.entries.map((e) {
+          return VolunteerEventModel.fromMap(e.value as Map, e.key.toString());
+        }).toList();
+      } catch (e) {
+        print('❌ ERROR parsing volunteer events: $e');
+        return [];
+      }
     });
   }
 
@@ -316,6 +420,7 @@ class DatabaseService {
       'ngoName': event.ngoName,
       'status': 'pending_approval',
       'registeredAt': ServerValue.timestamp,
+      'sdgPointsReward': event.sdgPointsReward,
     });
   }
 
@@ -395,6 +500,7 @@ class DatabaseService {
       required DonationProject project,
       required double amount,
       required String message}) async {
+    // 1. Record Donation
     await _db.child(AppConstants.colDonations).push().set({
       'userId': userId,
       'projectId': project.id,
@@ -402,32 +508,17 @@ class DatabaseService {
       'amount': amount,
       'createdAt': ServerValue.timestamp,
     });
-    final ref = _db.child('donation_projects').child(project.id);
-    final snap = await ref.child('raisedAmount').get();
-    await ref.update({'raisedAmount': (snap.value as num? ?? 0) + amount});
-  }
 
-  static Future<bool> donatePointsToProject(
-      {required String userId,
-      required DonationProject project,
-      required int points,
-      required int userCurrentScore}) async {
-    if (userCurrentScore < points) return false;
-    await _db
-        .child(AppConstants.colUsers)
-        .child(userId)
-        .update({'sdgScore': userCurrentScore - points});
-    await _db.child(AppConstants.colDonations).push().set({
-      'userId': userId,
-      'projectId': project.id,
-      'type': 'points',
-      'points': points,
-      'createdAt': ServerValue.timestamp,
-    });
-    final ref = _db.child('donation_projects').child(project.id);
-    final snap = await ref.child('raisedPoints').get();
-    await ref.update({'raisedPoints': (snap.value as int? ?? 0) + points});
-    return true;
+    // 2. Update Project Total
+    final projectRef = _db.child('donation_projects').child(project.id);
+    final projectSnap = await projectRef.child('raisedAmount').get();
+    await projectRef
+        .update({'raisedAmount': (projectSnap.value as num? ?? 0) + amount});
+
+    // 3. Award Bonus Points (RM1 = 20 pts, capped at 200)
+    final bonusPoints = (amount * 20).round().clamp(20, 200);
+    await updateUserScore(userId, bonusPoints);
+    print('🎁 DONATION: Awarded $bonusPoints pts for RM$amount donation');
   }
 
   static Stream<List<NGOModel>> watchTopNGOs() =>

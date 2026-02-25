@@ -3,12 +3,13 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'app.dart';
 import 'firebase_options.dart';
+import 'core/services/auth_service.dart';
 
 void main() async {
   // 1. PRINT LINKS IMMEDIATELY
   const fallbackIp = '192.168.68.109';
   print('\n\n================================================');
-  print('🚀 SDG CONNECT IS STARTING!');
+  print('🚀 ECORISE IS STARTING!');
   print('================================================');
   print('📱 MOBILE ACCESS: http://$fallbackIp:8080');
   print('🏠 WEB DASHBOARD: http://localhost:8080');
@@ -24,6 +25,9 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    print('🔄 Syncing user profile...');
+    await AuthService.syncCurrentUser();
 
     print('✅ Initialization complete!');
     runApp(const SdgApp());

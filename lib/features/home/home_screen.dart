@@ -7,7 +7,7 @@ import '../../core/models/user_model.dart';
 import '../../core/theme/app_theme.dart';
 import '../feed/feed_screen.dart';
 import '../volunteer/volunteer_screen.dart';
-import '../rewards/rewards_screen.dart';
+import '../rewards/missions_screen.dart';
 import '../donate/donate_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -45,7 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
     const FeedScreen(),
     const VolunteerScreen(),
     const SizedBox(), // placeholder for camera FAB
-    const RewardsScreen(),
+    const MissionsScreen(),
     const DonateScreen(),
   ];
 
@@ -186,8 +186,8 @@ class _BottomNav extends StatelessWidget {
                 // Center FAB placeholder
                 const SizedBox(width: 56),
                 _NavItem(
-                    icon: Icons.card_giftcard_rounded,
-                    label: 'Rewards',
+                    icon: Icons.assignment_turned_in_rounded,
+                    label: 'Missions',
                     index: 3,
                     current: currentIndex,
                     onTap: onTap),

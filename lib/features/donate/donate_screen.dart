@@ -315,6 +315,8 @@ class _ProjectCard extends StatelessWidget {
 
               const SizedBox(height: 14),
 
+              const SizedBox(height: 14),
+
               // ── Money progress ────────────────────────────────────────
               _ProgressBar(
                 label: 'RM Fundraising',
@@ -326,55 +328,26 @@ class _ProjectCard extends StatelessWidget {
                 formatTarget: 'RM ${project.targetAmount.toStringAsFixed(0)}',
               ),
 
-              const SizedBox(height: 10),
-
-              // ── Points progress ───────────────────────────────────────
-              _ProgressBar(
-                label: 'SDG Points',
-                raised: project.raisedPoints.toDouble(),
-                target: project.targetPoints.toDouble(),
-                progress: project.pointsProgress,
-                color: AppTheme.primary,
-                formatRaised: '${project.raisedPoints} pts',
-                formatTarget: '${project.targetPoints} pts',
-              ),
-
               const SizedBox(height: 14),
 
               // ── Donate buttons ────────────────────────────────────────
-              Row(children: [
-                Expanded(
-                    child: OutlinedButton.icon(
-                  onPressed: () => _showDonateDialog(context, mode: 'points'),
-                  icon: const Icon(Icons.stars_rounded, size: 16),
-                  label: const Text('Donate Points'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.primary,
-                    side: const BorderSide(color: AppTheme.primary),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    textStyle: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w700),
-                  ),
-                )),
-                const SizedBox(width: 10),
-                Expanded(
-                    child: ElevatedButton.icon(
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
                   onPressed: () => _showDonateDialog(context, mode: 'money'),
                   icon: const Icon(Icons.favorite_rounded, size: 16),
-                  label: const Text('Donate RM'),
+                  label: const Text('Donate Now ❤️'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFFF4D6A),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                     textStyle: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w700),
+                        fontSize: 14, fontWeight: FontWeight.w700),
                   ),
-                )),
-              ]),
+                ),
+              ),
             ]),
           ),
         ],
@@ -404,7 +377,6 @@ class _ProjectCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Handle
                       Center(
                           child: Container(
                               width: 40,
@@ -413,65 +385,38 @@ class _ProjectCard extends StatelessWidget {
                                   color: AppTheme.surfaceVariant,
                                   borderRadius: BorderRadius.circular(2)))),
                       const SizedBox(height: 20),
-                      Text(
-                          mode == 'money'
-                              ? '❤️ Donate Money'
-                              : '⭐ Donate Points',
-                          style: const TextStyle(
+                      const Text('❤️ Donate Money',
+                          style: TextStyle(
                               fontSize: 20, fontWeight: FontWeight.w800)),
                       const SizedBox(height: 4),
                       Text(project.title,
                           style: const TextStyle(
                               color: AppTheme.onSurfaceMuted, fontSize: 13)),
                       const SizedBox(height: 20),
-                      if (mode == 'points' && user != null)
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                              color: AppTheme.primary.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(12)),
-                          child: Row(children: [
-                            const Icon(Icons.stars_rounded,
-                                color: AppTheme.primary, size: 18),
-                            const SizedBox(width: 8),
-                            Text(
-                                'You have ${user!.sdgScore} SDG points available',
-                                style: const TextStyle(
-                                    color: AppTheme.primary,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13)),
-                          ]),
-                        ),
-                      if (mode == 'points' && user != null)
-                        const SizedBox(height: 14),
                       TextField(
                         controller: ctrl,
                         keyboardType: const TextInputType.numberWithOptions(
                             decimal: true),
                         autofocus: true,
                         decoration: InputDecoration(
-                          labelText: mode == 'money'
-                              ? 'Amount (RM)'
-                              : 'Points to donate',
-                          prefixText: mode == 'money' ? 'RM ' : '',
-                          suffixText: mode == 'points' ? 'pts' : '',
-                          hintText: mode == 'money' ? 'e.g. 20.00' : 'e.g. 100',
+                          labelText: 'Amount (RM)',
+                          prefixText: 'RM ',
+                          hintText: 'e.g. 20.00',
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                       const SizedBox(height: 12),
-                      if (mode == 'money')
-                        TextField(
-                          controller: msgCtrl,
-                          decoration: InputDecoration(
-                            labelText: 'Message (optional)',
-                            hintText: 'Leave a note of support...',
-                            border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                          ),
+                      TextField(
+                        controller: msgCtrl,
+                        decoration: InputDecoration(
+                          labelText: 'Message (optional)',
+                          hintText: 'Leave a note of support...',
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
                         ),
-                      if (mode == 'money') const SizedBox(height: 16),
+                      ),
+                      const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -482,47 +427,26 @@ class _ProjectCard extends StatelessWidget {
                                   if (uid == null) return;
                                   setS(() => loading = true);
                                   try {
-                                    if (mode == 'money') {
-                                      final amt = double.tryParse(ctrl.text);
-                                      if (amt == null || amt <= 0) return;
-                                      await DatabaseService
-                                          .donateMoneyToProject(
-                                              userId: uid,
-                                              project: project,
-                                              amount: amt,
-                                              message: msgCtrl.text);
-                                      if (ctx.mounted) {
-                                        Navigator.pop(ctx);
-                                        _showThanks(context,
-                                            'RM ${amt.toStringAsFixed(2)} donated! You earned ${(amt * 10).round().clamp(10, 100)} bonus SDG points. 🎉');
-                                      }
-                                    } else {
-                                      final pts = int.tryParse(ctrl.text);
-                                      if (pts == null || pts <= 0) return;
-                                      final success = await DatabaseService
-                                          .donatePointsToProject(
-                                              userId: uid,
-                                              project: project,
-                                              points: pts,
-                                              userCurrentScore:
-                                                  user?.sdgScore ?? 0);
-                                      if (ctx.mounted) {
-                                        Navigator.pop(ctx);
-                                        _showThanks(
-                                            context,
-                                            success
-                                                ? '$pts SDG points donated! Thank you! 🌱'
-                                                : '❌ Not enough SDG points.');
-                                      }
+                                    final amt = double.tryParse(ctrl.text);
+                                    if (amt == null || amt <= 0) return;
+                                    await DatabaseService.donateMoneyToProject(
+                                        userId: uid,
+                                        project: project,
+                                        amount: amt,
+                                        message: msgCtrl.text);
+                                    if (ctx.mounted) {
+                                      Navigator.pop(ctx);
+                                      final bonus =
+                                          (amt * 10).round().clamp(10, 100);
+                                      _showThanks(context,
+                                          'RM ${amt.toStringAsFixed(2)} donated! You earned $bonus bonus SDG points. 🎉');
                                     }
                                   } finally {
                                     setS(() => loading = false);
                                   }
                                 },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: mode == 'money'
-                                ? const Color(0xFFFF4D6A)
-                                : AppTheme.primary,
+                            backgroundColor: const Color(0xFFFF4D6A),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
@@ -536,9 +460,7 @@ class _ProjectCard extends StatelessWidget {
                                   height: 20,
                                   child: CircularProgressIndicator(
                                       strokeWidth: 2, color: Colors.white))
-                              : Text(mode == 'money'
-                                  ? 'Donate Now ❤️'
-                                  : 'Donate Points ⭐'),
+                              : const Text('Donate Now ❤️'),
                         ),
                       ),
                     ]),

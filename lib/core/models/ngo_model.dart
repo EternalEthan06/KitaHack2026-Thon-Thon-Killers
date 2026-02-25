@@ -99,6 +99,13 @@ class VolunteerEventModel {
       return null;
     }
 
+    List<T> parseList<T>(dynamic val) {
+      if (val == null) return [];
+      if (val is List) return val.cast<T>();
+      if (val is Map) return val.values.cast<T>().toList();
+      return [];
+    }
+
     return VolunteerEventModel(
       id: id,
       ngoId: data['ngoId'] ?? '',
@@ -108,9 +115,9 @@ class VolunteerEventModel {
       location: parseLoc(data['location']),
       address: data['address'] ?? '',
       date: parseDate(data['date']),
-      sdgGoals: List<int>.from(data['sdgGoals'] ?? []),
+      sdgGoals: parseList<int>(data['sdgGoals']),
       sdgPointsReward: data['sdgPointsReward'] ?? 50,
-      registeredUsers: List<String>.from(data['registeredUsers'] ?? []),
+      registeredUsers: parseList<String>(data['registeredUsers']),
       imageURL: data['imageURL'] ?? '',
     );
   }

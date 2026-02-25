@@ -1,30 +1,35 @@
-# 🌱 SDG Connect — KitaHack 2026
+# 🌿 EcoRise — KitaHack 2026
 
-A high-performance social impact platform built with **Flutter**, **Firebase**, and **Gemini AI**. Designed to gamify UN Sustainable Development Goals (SDGs) for **KitaHack 2026**.
+[![Live Demo](https://img.shields.io/badge/Live-Demo-brightgreen?style=for-the-badge)](https://kitahack2026-f1f3e.web.app)
+
+A high-performance social impact platform built with **Flutter**, **Firebase**, and **Gemini AI**. **EcoRise** empowers users to document and gamify their contributions to the UN Sustainable Development Goals (SDGs), turning climate action into a rewarding social experience.
 
 ---
 
-## 🚀 Quick Start (For Developers)
+## 🚀 Live Access
+Judges and users can access the fully deployed application here:  
+👉 **[https://kitahack2026-f1f3e.web.app](https://kitahack2026-f1f3e.web.app)**
+
+---
+
+## 🛠️ Setup & Installation
 
 ### 1. Prerequisites
-- **Flutter SDK**: ≥ 3.19 ([Installation Guide](https://docs.flutter.dev/get-started/install))
-- **Firebase Account**: (Spark/Free Plan is sufficient)
+- **Flutter SDK**: ≥ 3.3.0 ([Installation Guide](https://docs.flutter.dev/get-started/install))
+- **Firebase Account**: (App uses Firebase Realtime Database & Firestore)
 - **Google AI Studio Key**: For Gemini AI scoring ([Get Key Here](https://aistudio.google.com/app/apikey))
 
-### 2. Installation
+### 2. Getting Started
 ```bash
 # Clone the repository
 git clone https://github.com/EternalEthan06/KitaHack2026-Thon-Thon-Killers.git
-
-# Navigate to the project
-cd "KitaHack2026-Thon-Thon-Killers/Hackathon/Kitahack 26'/sdg_app"
 
 # Install dependencies
 flutter pub get
 ```
 
-### 3. Environment Setup
-Create a `.env` file in the project root:
+### 3. Environment Configuration
+Create a `.env` file in the project root to enable AI features:
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
@@ -33,65 +38,54 @@ GEMINI_API_KEY=your_gemini_api_key_here
 
 ## 📱 Running the App
 
-### Standard Web (Desktop)
+### Standard Web Deployment
 ```bash
 flutter run -d chrome
 ```
 
-### Mobile Testing (Local Network)
-If you want to test the **Camera** and **Story** features on your actual phone, use our auto-detect command (Windows PowerShell):
+### Mobile Testing (Local Network / Camera Support)
+To test high-impact features like the **Live Camera Verification**, use the provided batch file or the command below:
 
-```powershell
-$ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.AddressState -eq 'Preferred' -and $_.InterfaceAlias -notmatch 'Loopback|Virtual|vEthernet'} | Select-Object -First 1).IPAddress; Write-Host "`n📱 MOBILE ACCESS: http://$($ip):8080`n" -ForegroundColor Cyan; flutter run -d web-server --web-hostname 0.0.0.0 --web-port 8080
+```bash
+.\run_mobile.bat
 ```
-*Or simply run `.\run_mobile.bat` if you are on Windows.*
 
 ---
 
-## 🛠️ Specialized Technical Features
+## 🧪 Technical Innovation
 
-### 💎 Hackathon-Free Mode (Base64 Storage)
-To remain compatible with the **Firebase Spark (Free) Plan**, this app does not require a paid "Blaze" plan for storage. 
-- Captured images are converted to **Base64** strings.
-- Stored directly in **Firestore documents**.
-- Optimized at **512px** to stay well within the 1MB Firestore limit.
+### 🧠 Self-Healing AI Architecture
+EcoRise features a multi-stage **AI Fallback System**. If the primary `gemini-1.5-flash` model is restricted or unavailable, the app automatically cycles through `gemini-pro` and `gemini-1.5-flash-8b`. If all API paths fail, it enters a **Demo-Safe Mode** to ensure the user's experience is never interrupted during a presentation.
 
-### 🛡️ Crash-Proof Session Recovery
-Mobile browsers (Chrome/Safari) often refresh the page after the camera closes to save RAM. 
-- Integrated **Persistent State Recovery** using `shared_preferences`.
-- Automatically restores your photo and caption if the browser reloads.
-- Seamlessly redirects you back to the upload screen so you never lose your progress.
-
-### 🤖 Gemini-Powered SDG Scoring
-- Automatic image analysis using **Gemini 1.5 Flash**.
-- Maps user activities to specific UN Sustainable Development Goals.
-- Dynamic point awarding based on "Impact Relevance."
+### 🛡️ Low-Latency Impact Proofing
+- **PWA Ready**: Can be installed directly from the browser as a standalone app.
+- **Base64 Optimization**: Captured images are processed and stored efficiently as Base64 strings to remain 100% compatible with the Firebase Free (Spark) tier while maintaining high visual quality.
+- **Persistent State**: Integrated recovery using `shared_preferences` to prevent data loss during browser RAM refreshes when using the camera.
 
 ---
 
-## 📂 Project Architecture
+## 📂 Project Structure
 
 ```
 lib/
 ├── core/
-│   ├── services/     # AI (Gemini), Database (Firestore), Auth
-│   ├── models/       # Type-safe data structures
-│   └── router/       # GoRouter with refresh-resilient redirects
+│   ├── services/     # Self-Healing AI, Firebase Logic, Auth
+│   ├── models/       # SDG, Post, NGO, and User Models
+│   └── theme/        # EcoRise Neon Design System
 ├── features/
-│   ├── feed/         # Story Bar + Main Impact Feed
-│   ├── camera/       # AI-integrated capture system
-│   ├── volunteer/    # NGO Event management
-│   └── marketplace/  # Reward redemption system
-└── shared/
-    └── theme/        # Premium SDG-themed design system
+│   ├── feed/         # Social For-You & Certified SDG Feeds
+│   ├── camera/       # AI-driven Impact Analysis
+│   ├── volunteer/    # NGO Event & Calendar Integration
+│   └── donate/       # Rewarding Donation System (20x Points)
 ```
 
 ---
 
 ## 🏆 Team: Thon Thon Killers
-Built with ❤️ for **KitaHack 2026**.
+Built for **KitaHack 2026**.
 - **Ethan Tiang**
 - **Chloe Lai Phui Yan**
 - **Lee Jasmin**
 - **Wong Kai Heng**
-- Powered by **Google Cloud** & **Flutter**
+
+Powered by **Google Cloud**, **Flutter**, & **Gemini AI**.

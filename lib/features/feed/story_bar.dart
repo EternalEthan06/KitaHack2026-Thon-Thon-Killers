@@ -316,9 +316,10 @@ class _StoryCreateScreenState extends State<StoryCreateScreen> {
     if (!_isFromCamera) {
       setState(() {
         _analysis = {
-          'score': 15,
+          'score': 0,
           'sdg_goals': [],
-          'reason': 'Gallery upload skipped AI analysis. 15 points awarded.'
+          'reason':
+              'Gallery upload. Points are only awarded for live camera captures to ensure authenticity.'
         };
         _analyzing = false;
       });
@@ -361,10 +362,23 @@ class _StoryCreateScreenState extends State<StoryCreateScreen> {
       final points = (score * 0.7).round();
 
       print('🚀 Calling DatabaseService.createStory (points: $points)...');
+      setState(() => _uploadStatus = '🛡️ Checking content safety...');
+      final safe =
+          await GeminiService.instance.isImageSafeFromBytes(_imageBytes!);
+      if (!safe && mounted) {
+        setState(() {
+          _uploading = false;
+          _uploadStatus = '';
+          _errorMessage =
+              'This image is not appropriate for our family-friendly platform.';
+        });
+        return;
+      }
+
       setState(() => _uploadStatus = '📂 Preparing upload...');
       await DatabaseService.createStory(
         userId: uid,
-        userDisplayName: AuthService.currentUser?.displayName ?? 'You',
+        userDisplayName: AuthService.currentUser?.displayName ?? 'SDG Hero',
         userPhotoURL: AuthService.currentUser?.photoURL ?? '',
         imageBytes: _imageBytes!,
         caption: _captionCtrl.text.trim(),
