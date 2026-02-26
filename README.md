@@ -38,20 +38,29 @@ EcoRise leverages generative AI to automatically verify and score user activitie
 
 ## ✨ Key Features
 
-### 🧠 Self-Healing AI Architecture
-* **AI Fallback System:** EcoRise features a multi-stage AI fallback. If the primary `gemini-1.5-flash` model is restricted or unavailable, it automatically cycles through `gemini-pro` and `gemini-1.5-flash-8b`.
-* **Demo-Safe Mode:** If all API paths fail, it smoothly transitions to a fallback state to ensure the user's experience is never interrupted during a presentation or demo.
+### 📸 Smart Impact Capture & AI Validation
+* **Live Camera SDG Posts:** Capture sustainable actions in real-time. Our Gemini AI automatically analyzes the image and awards proportionate SDG Scores based on the environmental impact.
+* **Gallery Uploads:** Share moments from your device gallery with the community (Note: Gallery posts are standard posts and bypass AI scoring to ensure authenticity).
+* **Self-Healing AI Architecture:** Features a multi-stage AI fallback cycling through `gemini-1.5-flash`, `gemini-pro`, and `gemini-1.5-flash-8b`. Enters a seamless Demo-Safe Mode if all connections drop.
 
-### 🛡️ Low-Latency Impact Proofing
-* **Base64 Optimization:** Captured images are processed and stored efficiently as Base64 strings to remain 100% compatible with the Firebase Free (Spark) tier while maintaining high visual quality.
-* **Persistent State:** High-reliability integrated recovery using `shared_preferences` prevents data loss during browser RAM refreshes when using the camera.
+### 🌟 Gamified Sustainability & Rewards
+* **Eco-Streaks:** Build consistent green habits. Users earn extra SDG points for maintaining daily action streaks.
+* **Rewards Redemption:** Exchange your hard-earned SDG scores for real-world incentives, such as exclusive vouchers or planting actual trees.
+* **Rewarding Donations:** Support charities and NGO projects directly through the app, helping fund volunteer programs while earning bonus points.
 
-### 📱 User Engagement & Impact Tracking
-* **PWA Ready:** Can be installed directly from the browser as a standalone app.
-* **Social Feeds:** Dedicated "For-You" and "Certified SDG" feeds to track and encourage community impact.
-* **NGO Integration:** Direct NGO event & calendar integration for finding volunteer opportunities.
-* **Rewarding Donations:** A rewarding donation system (20x Points) built directly into the platform.
+### 🤝 Community & NGO Ecosystem
+* **Social Platform:** A fully-featured social media space uniting the community to share information, communicate, and draw inspiration.
+* **Volunteer Hub:** A dedicated space for NGOs to advertise volunteering programs and collaborate with the community.
+* **NGO Marketplace:** Support non-profits by purchasing their goods (e.g., handmade tote bags, upcycled crafts) directly through the platform.
 
+### � Personalized Eco-Diary
+* **Impact Tracking:** Every sustainable act is recorded as a personal diary.
+* **AI Recommendations:** The system analyzes your activity preferences to recommend tailored, suitable acts.
+* **Dynamic Profile:** Your profile dynamically showcases your eco-diary, highlighting the scores you've earned day by day.
+
+### 🛡️ Seamless Performance
+* **PWA Ready & Low-Latency:** Install directly from the browser. Employs Base64 image optimization to maximize Firebase efficiency.
+* **Persistent State:** High-reliability integrated recovery using `shared_preferences` prevents data loss during camera usage or browser refreshes.
 ---
 
 ## 📂 Project Structure
