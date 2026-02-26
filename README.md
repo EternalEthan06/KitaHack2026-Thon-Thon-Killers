@@ -53,7 +53,7 @@ EcoRise leverages generative AI to automatically verify and score user activitie
 * **Volunteer Hub:** A dedicated space for NGOs to advertise volunteering programs and collaborate with the community.
 * **NGO Marketplace:** Support non-profits by purchasing their goods (e.g., handmade tote bags, upcycled crafts) directly through the platform.
 
-### � Personalized Eco-Diary
+### ⚡ Seamless Performance
 * **Impact Tracking:** Every sustainable act is recorded as a personal diary.
 * **AI Recommendations:** The system analyzes your activity preferences to recommend tailored, suitable acts.
 * **Dynamic Profile:** Your profile dynamically showcases your eco-diary, highlighting the scores you've earned day by day.
