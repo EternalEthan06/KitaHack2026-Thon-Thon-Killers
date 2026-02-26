@@ -15,8 +15,28 @@
 </div>
 
 ---
+## Problem Statement
+### A) Volunteer Connection Gap
+- People want to volunteer but lack a centralized, trusted platform while NGOs struggle to recruit and promote events efficiently.
 
-## 📖 About EcoRise
+### B) Daily Motivation Deficit
+- SDGs feel abstract and unrewarding. No system tracks or gamifies real-life impact to build lasting habits.
+
+### C) NGO Funding & Visibility Struggle
+- NGOs lack high-visibility channels for donations and product sales while needing to compete with commercial algorithms on traditional social media.
+
+---
+
+### **SDG Alignment**
+EcoRise is designed to accelerate the **UN Sustainable Development Goals (SDGs)**, specifically focusing on:
+*   **SDG 12**: Responsible Consumption and Production.
+*   **SDG 13**: Climate Action.
+*   **SDG 14/15**: Life Below Water & On Land.
+
+---
+
+## Our Solution -- EcoRise
+### 📖 About EcoRise
 
 **EcoRise** is a modern application built to promote sustainable development goals (SDGs) by integrating AI-driven impact analysis, social feeds, and rewarding donation systems. 
 
@@ -61,6 +81,44 @@ EcoRise leverages generative AI to automatically verify and score user activitie
 ### ⚡ Seamless Performance
 * **PWA Ready & Low-Latency:** Install directly from the browser. Employs Base64 image optimization to maximize Firebase efficiency.
 * **Persistent State:** High-reliability integrated recovery using `shared_preferences` prevents data loss during camera usage or browser refreshes.
+
+---
+
+## 🛠️ Overview of Technologies Used
+### **Google Developer Technologies**
+*   **Flutter**: Chosen over alternatives for its **"Write Once, Run Anywhere"** capability, allowing us to build a high-performance PWA and Mobile app from a single codebase.
+*   **Firebase Realtime Database (RTDB)**: We switched from Firestore to RTDB to achieve **sub-millisecond synchronization** for our social gamification loops.
+*   **Gemini AI (1.5 Flash)**: Chosen for its native **Multimodal SDK** which allows EcoRise to process image bytes faster and more affordably than OpenAI or Llama alternatives.
+*   **Firebase Analytics**: integrated to track "Impact Ratios" and user retention across SDG categories.
+### **Supporting Tools**
+*   **Dart SDK**: Powering the frontend logic.
+*   **Google AI Studio**: For rapid prototyping of self-healing prompts.
+
+---
+
+
+## 🏗️ Implementation Details & Innovation
+### **System Architecture**
+EcoRise uses a **Decoupled AI Pipeline**. The UI generates a thread for the camera, the AI Service processes the multimodal analysis in the background, and the RTDB triggers a "Push Notification" style update to the UI state without blocking the user.
+### **Self-Healing Workflow**
+1.  **Stage 1 (Primary)**: Try `gemini-1.5-flash` for high-speed analysis.
+2.  **Stage 2 (Fallback)**: If Stage 1 fails, the system attempts `gemini-pro` (Text) or `1.5-flash-8b`.
+3.  **Stage 3 (Safety)**: If total API failure occurs, the app enters **Demo Mode** with mock success data to ensure zero user frustration.
+
+---
+
+## ⚠️ Challenges Faced
+*   **Architectural Migration**: Moving from Firestore to RTDB required a total rewrite of our [DatabaseService](lib/core/services/firestore_service.dart) to handle flat JSON trees instead of structured collections.
+*   **AI Model Incompatibility**: We overcame challenges where older models (Gemini Pro) were unable to handle modern JSON-response configurations used in our newer models.
+*   **Web Image Processing**: Browser restrictions on local file paths forced us to innovate using `Uint8List` byte-processing for universal camera support.
+
+---
+
+## 🚀 Live Access
+
+Judges and users can access the fully deployed application here:  
+👉 **[https://kitahack2026-f1f3e.web.app](https://kitahack2026-f1f3e.web.app)**
+
 ---
 
 ## 📂 Project Structure
@@ -120,12 +178,10 @@ To test high-impact features like the **Live Camera Verification**, use the prov
 
 ---
 
-## 🚀 Live Access
-
-Judges and users can access the fully deployed application here:  
-👉 **[https://kitahack2026-f1f3e.web.app](https://kitahack2026-f1f3e.web.app)**
-
----
+## 🗺️ Future Roadmap
+*   **Google Maps Integration**: Visualizing local "Impact Clusters" to see which Malaysian neighborhoods are making the most change.
+*   **NGO Verified Partnerships**: Allowing NGO's to verify actions manually for 2x points.
+*   **Eco-Marketplace Expansion**: Real-world voucher redemptions with local green businesses.
 
 ## ⚙️ Tech Stack
 
@@ -142,10 +198,10 @@ Judges and users can access the fully deployed application here:
 
 ## 🏆 Team: Thon Thon Killers
 Built for **KitaHack 2026**.
-* **Ethan Tiang**
-* **Chloe Lai Phui Yan**
-* **Lee Jasmin**
-* **Wong Kai Heng**
+* **Ethan Tiang Yong Xuan** : Software Engineering
+* **Chloe Lai Phui Yan** : Software Engineering
+* **Lee Jasmin** : Robotics and Mechatronics Engineering
+* **Wong Kai Heng** : Robotics and Mechatronics Engineering
 
 ---
 ## License
