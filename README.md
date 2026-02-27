@@ -15,6 +15,19 @@
 </div>
 
 ---
+## 📑 Table of Contents
+- [Problem Statement](#-problem-statement)
+- [SDG Alignment](#-sdg-alignment)
+- [Our Solution -- Ecorise](#-our-solution----ecorise)
+- [Key Features](#-key-features)
+- [Project Structure](#-project-structure)
+- [Setup & Installation](#-setup--installation)
+- [Running the App](#-running-the-app)
+- [Live Access](#-live-access)
+- [Tech Stack](#-tech-stack)
+- [Team: Thon Thon Killers](#-team-thon-thon-killers)
+- [License](#-license)
+---
 ## Problem Statement
 ### A) Volunteer Connection Gap
 - People want to volunteer but lack a centralized, trusted platform while NGOs struggle to recruit and promote events efficiently.
@@ -43,16 +56,6 @@ EcoRise is designed to accelerate the **UN Sustainable Development Goals (SDGs)*
 EcoRise leverages generative AI to automatically verify and score user activities, ensuring seamless operations even under API restrictions with its self-healing AI architecture. Built by the Thon Thon Killers for the **KitaHack 2026** hackathon.
 
 ![Display Demo](image-2.png)
-
-## 📑 Table of Contents
-- [Key Features](#-key-features)
-- [Project Structure](#-project-structure)
-- [Setup & Installation](#-setup--installation)
-- [Running the App](#-running-the-app)
-- [Live Access](#-live-access)
-- [Tech Stack](#-tech-stack)
-- [Team: Thon Thon Killers](#-team-thon-thon-killers)
-- [License](#-license)
 
 ---
 
